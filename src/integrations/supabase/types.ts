@@ -38,6 +38,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          after_value: Json | null
+          before_value: Json | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          reason: string | null
+          target_id: string | null
+          target_type: string | null
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          after_value?: Json | null
+          before_value?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          after_value?: Json | null
+          before_value?: Json | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string | null
+          target_id?: string | null
+          target_type?: string | null
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_holder_name: string
@@ -92,6 +131,42 @@ export type Database = {
           rate?: number
           to_currency?: Database["public"]["Enums"]["wallet_currency"]
           updated_at?: string
+        }
+        Relationships: []
+      }
+      flagged_users: {
+        Row: {
+          created_at: string
+          flagged_by: string
+          id: string
+          reason: string
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          flagged_by: string
+          id?: string
+          reason: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          flagged_by?: string
+          id?: string
+          reason?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -303,6 +378,7 @@ export type Database = {
           created_at: string
           currency: Database["public"]["Enums"]["wallet_currency"]
           description: string | null
+          fee: number
           id: string
           status: Database["public"]["Enums"]["transaction_status"]
           type: Database["public"]["Enums"]["transaction_type"]
@@ -314,6 +390,7 @@ export type Database = {
           created_at?: string
           currency: Database["public"]["Enums"]["wallet_currency"]
           description?: string | null
+          fee?: number
           id?: string
           status?: Database["public"]["Enums"]["transaction_status"]
           type: Database["public"]["Enums"]["transaction_type"]
@@ -325,6 +402,7 @@ export type Database = {
           created_at?: string
           currency?: Database["public"]["Enums"]["wallet_currency"]
           description?: string | null
+          fee?: number
           id?: string
           status?: Database["public"]["Enums"]["transaction_status"]
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -359,6 +437,7 @@ export type Database = {
           created_at: string
           currency: Database["public"]["Enums"]["wallet_currency"]
           id: string
+          is_frozen: boolean
           updated_at: string
           user_id: string
         }
@@ -367,6 +446,7 @@ export type Database = {
           created_at?: string
           currency: Database["public"]["Enums"]["wallet_currency"]
           id?: string
+          is_frozen?: boolean
           updated_at?: string
           user_id: string
         }
@@ -375,6 +455,7 @@ export type Database = {
           created_at?: string
           currency?: Database["public"]["Enums"]["wallet_currency"]
           id?: string
+          is_frozen?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -426,6 +507,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_adjust_balance: {
+        Args: {
+          _amount: number
+          _currency: Database["public"]["Enums"]["wallet_currency"]
+          _direction: string
+          _reason: string
+          _target_user: string
+        }
+        Returns: Json
+      }
+      admin_financial_overview: { Args: never; Returns: Json }
+      admin_flag_user: {
+        Args: { _reason: string; _severity?: string; _target_user: string }
+        Returns: Json
+      }
+      admin_freeze_wallet: {
+        Args: {
+          _currency: Database["public"]["Enums"]["wallet_currency"]
+          _frozen: boolean
+          _reason: string
+          _target_user: string
+        }
+        Returns: Json
+      }
+      admin_resolve_flag: {
+        Args: { _flag_id: string; _note: string }
+        Returns: Json
+      }
+      admin_set_role: {
+        Args: {
+          _grant: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+          _target_user: string
+        }
+        Returns: Json
+      }
       exchange_currency:
         | {
             Args: {
@@ -462,6 +579,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin_any: { Args: never; Returns: boolean }
       request_withdrawal:
         | {
             Args: {
@@ -512,7 +630,12 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "super_admin"
+      app_role:
+        | "admin"
+        | "user"
+        | "super_admin"
+        | "finance_admin"
+        | "support_admin"
       transaction_status: "pending" | "completed" | "failed"
       transaction_type:
         | "transfer_in"
@@ -648,7 +771,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "super_admin"],
+      app_role: [
+        "admin",
+        "user",
+        "super_admin",
+        "finance_admin",
+        "support_admin",
+      ],
       transaction_status: ["pending", "completed", "failed"],
       transaction_type: [
         "transfer_in",
