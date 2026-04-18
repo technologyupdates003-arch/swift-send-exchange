@@ -13,6 +13,10 @@ import Wallets from "./pages/Wallets";
 import SendMoney from "./pages/SendMoney";
 import Transactions from "./pages/Transactions";
 import Exchange from "./pages/Exchange";
+import BankAccounts from "./pages/BankAccounts";
+import Kyc from "./pages/Kyc";
+import Settings from "./pages/Settings";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +43,10 @@ const App = () => (
               <Route path="/wallets" element={<Wallets />} />
               <Route path="/send" element={<SendMoney />} />
               <Route path="/exchange" element={<Exchange />} />
+              <Route path="/withdraw" element={<BankAccounts />} />
+              <Route path="/kyc" element={<Kyc />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="/transactions" element={<Transactions />} />
             </Route>
             <Route path="*" element={<NotFound />} />
