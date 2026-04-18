@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
 import { ArrowDown, RefreshCw } from "lucide-react";
+import { PinDialog } from "@/components/PinDialog";
+import { usePinGuard } from "@/hooks/usePinGuard";
 
 const supabase = sb as any;
 
@@ -19,12 +21,14 @@ interface Rate { from_currency: string; to_currency: string; rate: number; }
 export default function Exchange() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { hasPin } = usePinGuard();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [rates, setRates] = useState<Rate[]>([]);
   const [from, setFrom] = useState("USD");
   const [to, setTo] = useState("EUR");
   const [amount, setAmount] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -46,18 +50,25 @@ export default function Exchange() {
 
   const swap = () => { const a = from; setFrom(to); setTo(a); };
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { toast.error("Enter a valid amount"); return; }
     if (from === to) { toast.error("Pick two different currencies"); return; }
     if (!fromWallet || amt > Number(fromWallet.balance)) { toast.error("Insufficient balance"); return; }
-    setSubmitting(true);
+    if (!hasPin) { toast.error("Set your transaction PIN in Settings first"); navigate("/settings"); return; }
+    setPinOpen(true);
+  };
+
+  const onPinSubmit = async (pin: string) => {
+    const amt = parseFloat(amount);
+    setPinLoading(true);
     const { error } = await supabase.rpc("exchange_currency", {
-      _from_currency: from, _to_currency: to, _amount: amt,
+      _from_currency: from, _to_currency: to, _amount: amt, _pin: pin,
     });
-    setSubmitting(false);
+    setPinLoading(false);
     if (error) { toast.error(error.message); return; }
+    setPinOpen(false);
     toast.success("Exchange complete");
     navigate("/wallets");
   };
@@ -112,13 +123,14 @@ export default function Exchange() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting || !rate || !amount}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {submitting ? "Converting..." : "Convert"}
+            <Button type="submit" className="w-full" disabled={!rate || !amount}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Convert
             </Button>
           </form>
         </CardContent>
       </Card>
+
+      <PinDialog open={pinOpen} onClose={() => setPinOpen(false)} onSubmit={onPinSubmit} loading={pinLoading} />
     </div>
   );
 }

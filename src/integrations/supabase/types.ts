@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_config: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_holder_name: string
@@ -143,6 +167,45 @@ export type Database = {
         }
         Relationships: []
       }
+      mpesa_payouts: {
+        Row: {
+          amount: number
+          created_at: string
+          fee: number
+          id: string
+          phone_number: string
+          processed_at: string | null
+          provider_response: Json | null
+          reference: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          fee?: number
+          id?: string
+          phone_number: string
+          processed_at?: string | null
+          provider_response?: Json | null
+          reference?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          fee?: number
+          id?: string
+          phone_number?: string
+          processed_at?: string | null
+          provider_response?: Json | null
+          reference?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       paystack_transactions: {
         Row: {
           amount: number
@@ -209,6 +272,27 @@ export type Database = {
           kyc_tier?: string
           phone_number?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      transaction_pins: {
+        Row: {
+          created_at: string
+          pin_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          pin_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          pin_hash?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -342,14 +426,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      exchange_currency: {
+      exchange_currency:
+        | {
+            Args: {
+              _amount: number
+              _from_currency: Database["public"]["Enums"]["wallet_currency"]
+              _to_currency: Database["public"]["Enums"]["wallet_currency"]
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _from_currency: Database["public"]["Enums"]["wallet_currency"]
+              _pin?: string
+              _to_currency: Database["public"]["Enums"]["wallet_currency"]
+            }
+            Returns: Json
+          }
+      fund_wallet: {
         Args: {
           _amount: number
-          _from_currency: Database["public"]["Enums"]["wallet_currency"]
-          _to_currency: Database["public"]["Enums"]["wallet_currency"]
+          _currency: Database["public"]["Enums"]["wallet_currency"]
+          _method: string
+          _reference: string
+          _user_id: string
         }
         Returns: Json
       }
+      has_pin: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -357,26 +462,57 @@ export type Database = {
         }
         Returns: boolean
       }
-      request_withdrawal: {
-        Args: {
-          _amount: number
-          _bank_account_id: string
-          _currency: Database["public"]["Enums"]["wallet_currency"]
-        }
+      request_withdrawal:
+        | {
+            Args: {
+              _amount: number
+              _bank_account_id: string
+              _currency: Database["public"]["Enums"]["wallet_currency"]
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _bank_account_id: string
+              _currency: Database["public"]["Enums"]["wallet_currency"]
+              _pin?: string
+            }
+            Returns: Json
+          }
+      send_to_mpesa: {
+        Args: { _amount: number; _phone: string; _pin: string }
         Returns: Json
       }
-      transfer_funds: {
-        Args: {
-          _amount: number
-          _currency: Database["public"]["Enums"]["wallet_currency"]
-          _description: string
-          _to_email: string
-        }
+      set_transaction_pin: { Args: { _pin: string }; Returns: Json }
+      transfer_funds:
+        | {
+            Args: {
+              _amount: number
+              _currency: Database["public"]["Enums"]["wallet_currency"]
+              _description: string
+              _to_email: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _currency: Database["public"]["Enums"]["wallet_currency"]
+              _description: string
+              _pin?: string
+              _to_email: string
+            }
+            Returns: Json
+          }
+      verify_transaction_pin: { Args: { _pin: string }; Returns: boolean }
+      withdraw_to_mpesa: {
+        Args: { _amount: number; _phone: string; _pin: string }
         Returns: Json
       }
     }
     Enums: {
-      app_role: "admin" | "user"
+      app_role: "admin" | "user" | "super_admin"
       transaction_status: "pending" | "completed" | "failed"
       transaction_type:
         | "transfer_in"
@@ -512,7 +648,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user"],
+      app_role: ["admin", "user", "super_admin"],
       transaction_status: ["pending", "completed", "failed"],
       transaction_type: [
         "transfer_in",
