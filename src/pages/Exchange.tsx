@@ -123,13 +123,14 @@ export default function Exchange() {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting || !rate || !amount}>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {submitting ? "Converting..." : "Convert"}
+            <Button type="submit" className="w-full" disabled={!rate || !amount}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Convert
             </Button>
           </form>
         </CardContent>
       </Card>
+
+      <PinDialog open={pinOpen} onClose={() => setPinOpen(false)} onSubmit={onPinSubmit} loading={pinLoading} />
     </div>
   );
 }
