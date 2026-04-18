@@ -426,14 +426,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      exchange_currency: {
-        Args: {
-          _amount: number
-          _from_currency: Database["public"]["Enums"]["wallet_currency"]
-          _to_currency: Database["public"]["Enums"]["wallet_currency"]
-        }
-        Returns: Json
-      }
+      exchange_currency:
+        | {
+            Args: {
+              _amount: number
+              _from_currency: Database["public"]["Enums"]["wallet_currency"]
+              _to_currency: Database["public"]["Enums"]["wallet_currency"]
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _from_currency: Database["public"]["Enums"]["wallet_currency"]
+              _pin?: string
+              _to_currency: Database["public"]["Enums"]["wallet_currency"]
+            }
+            Returns: Json
+          }
       fund_wallet: {
         Args: {
           _amount: number
