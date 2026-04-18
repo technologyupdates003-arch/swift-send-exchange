@@ -79,7 +79,7 @@ export default function SendMoney() {
     <div className="space-y-6 max-w-xl">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Send money</h1>
-        <p className="text-muted-foreground">Wallet-to-wallet transfer to another Swift Remit user.</p>
+        <p className="text-muted-foreground">Wallet-to-wallet transfer to another AbanRemit user.</p>
       </div>
 
       <Card>

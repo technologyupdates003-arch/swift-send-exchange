@@ -9,7 +9,7 @@ export function Logo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         <Cloud className="h-1/2 w-1/2" />
       </div>
       <span className={`${text} font-bold tracking-tight`}>
-        Swift Remit<span className="text-primary">.</span>
+        AbanRemit<span className="text-primary">.</span>
       </span>
     </div>
   );

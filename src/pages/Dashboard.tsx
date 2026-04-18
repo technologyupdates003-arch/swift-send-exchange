@@ -37,7 +37,7 @@ export default function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight">
           Welcome{profileName ? `, ${profileName.split(" ")[0]}` : ""}
         </h1>
-        <p className="text-muted-foreground">Here's a snapshot of your Swift Remit account.</p>
+        <p className="text-muted-foreground">Here's a snapshot of your AbanRemit account.</p>
       </div>
 
       {/* Hero CTA */}

@@ -54,7 +54,7 @@ export default function Login() {
         <Card>
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Sign in to your Swift Remit account</CardDescription>
+            <CardDescription>Sign in to your AbanRemit account</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="space-y-4">
