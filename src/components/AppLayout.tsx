@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Wallet, Send, History, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, Wallet, Send, History, LogOut, Menu, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/wallets", label: "Wallets", icon: Wallet },
   { to: "/send", label: "Send", icon: Send },
+  { to: "/exchange", label: "Exchange", icon: RefreshCw },
   { to: "/transactions", label: "Transactions", icon: History },
 ];
 
