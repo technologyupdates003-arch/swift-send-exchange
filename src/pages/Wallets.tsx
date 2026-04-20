@@ -7,15 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
-import { Plus, Wallet as WalletIcon } from "lucide-react";
+import { Plus, Wallet as WalletIcon, Copy, Check } from "lucide-react";
 
-interface Wallet { id: string; currency: string; balance: number; }
+interface Wallet { id: string; currency: string; balance: number; wallet_number: string; }
 
 export default function Wallets() {
   const { user } = useAuth();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [newCurrency, setNewCurrency] = useState<string>("");
   const [creating, setCreating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("wallets").select("*").order("currency");
@@ -42,11 +43,18 @@ export default function Wallets() {
     load();
   };
 
+  const copyNumber = async (num: string) => {
+    await navigator.clipboard.writeText(num);
+    setCopied(num);
+    toast.success("Wallet number copied");
+    setTimeout(() => setCopied(null), 1500);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-0">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Wallets</h1>
-        <p className="text-muted-foreground">Hold balances in multiple currencies.</p>
+        <p className="text-muted-foreground">Hold balances in multiple currencies. Share your wallet number to receive money.</p>
       </div>
 
       {available.length > 0 && (
@@ -78,6 +86,20 @@ export default function Wallets() {
             <CardContent>
               <p className="text-3xl font-bold">{formatMoney(w.balance, w.currency)}</p>
               <p className="mt-1 text-xs text-muted-foreground">Available balance</p>
+              {w.wallet_number && (
+                <button
+                  onClick={() => copyNumber(w.wallet_number)}
+                  className="mt-3 flex w-full items-center justify-between gap-2 rounded-md border bg-muted/40 px-3 py-2 text-left hover:bg-muted transition"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Wallet number</p>
+                    <p className="truncate font-mono text-sm font-semibold">{w.wallet_number}</p>
+                  </div>
+                  {copied === w.wallet_number
+                    ? <Check className="h-4 w-4 text-primary shrink-0" />
+                    : <Copy className="h-4 w-4 text-muted-foreground shrink-0" />}
+                </button>
+              )}
             </CardContent>
           </Card>
         ))}

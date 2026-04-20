@@ -8,19 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
-import { Send, Smartphone, AtSign } from "lucide-react";
+import { Send, Smartphone, Hash, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { PinDialog } from "@/components/PinDialog";
 import { usePinGuard } from "@/hooks/usePinGuard";
 
 const supabase = sb as any;
 
-const walletSchema = z.object({
-  to_email: z.string().trim().email("Invalid email").max(255),
-  currency: z.string().min(1, "Pick a wallet"),
+const walletNumberSchema = z.object({
+  to_wallet_number: z.string().regex(/^ABN\d{10}$/i, "Format: ABN + 10 digits"),
   amount: z.number().positive("Amount must be > 0"),
   description: z.string().max(200).optional(),
 });
@@ -29,7 +27,8 @@ const mpesaSchema = z.object({
   amount: z.number().positive("Amount must be > 0"),
 });
 
-interface Wallet { id: string; currency: string; balance: number; }
+interface Wallet { id: string; currency: string; balance: number; wallet_number: string; }
+interface LookupResult { wallet_number: string; currency: string; full_name: string | null; user_id: string; }
 
 export default function SendMoney() {
   const { user } = useAuth();
@@ -40,12 +39,12 @@ export default function SendMoney() {
   const [pinLoading, setPinLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<((pin: string) => Promise<void>) | null>(null);
 
-  // Wallet send
-  const [toEmail, setToEmail] = useState("");
-  const [currency, setCurrency] = useState("");
+  // Wallet send (by wallet number)
+  const [toWallet, setToWallet] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [recipientStatus, setRecipientStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [lookupStatus, setLookupStatus] = useState<"idle" | "checking" | "found" | "notfound" | "self">("idle");
+  const [lookup, setLookup] = useState<LookupResult | null>(null);
 
   // M-Pesa send
   const [phone, setPhone] = useState("");
@@ -54,26 +53,30 @@ export default function SendMoney() {
   useEffect(() => {
     if (!user) return;
     supabase.from("wallets").select("*").order("currency").then(({ data }: any) => {
-      if (data) {
-        setWallets(data);
-        if (data.length && !currency) setCurrency(data[0].currency);
-      }
+      if (data) setWallets(data);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Validate recipient email
+  // Lookup wallet number (debounced)
   useEffect(() => {
+    const raw = toWallet.trim().toUpperCase();
+    if (!/^ABN\d{10}$/.test(raw)) {
+      setLookupStatus("idle"); setLookup(null); return;
+    }
+    setLookupStatus("checking");
     const t = setTimeout(async () => {
-      if (!toEmail || !z.string().email().safeParse(toEmail).success) {
-        setRecipientStatus("idle"); return;
-      }
-      setRecipientStatus("checking");
-      const { data } = await supabase.from("profiles").select("id").eq("email", toEmail).maybeSingle();
-      setRecipientStatus(data ? "valid" : "invalid");
-    }, 400);
+      const { data, error } = await supabase.rpc("lookup_wallet", { _wallet_number: raw });
+      if (error || !data) { setLookupStatus("notfound"); setLookup(null); return; }
+      if (data.user_id === user?.id) { setLookupStatus("self"); setLookup(null); return; }
+      setLookup(data as LookupResult);
+      setLookupStatus("found");
+    }, 350);
     return () => clearTimeout(t);
-  }, [toEmail]);
+  }, [toWallet, user?.id]);
+
+  const matchingSenderWallet = lookup
+    ? wallets.find((w) => w.currency === lookup.currency)
+    : null;
 
   const requirePin = (action: (pin: string) => Promise<void>) => {
     if (!hasPin) {
@@ -99,19 +102,24 @@ export default function SendMoney() {
 
   const onSendWallet = (e: React.FormEvent) => {
     e.preventDefault();
-    const parsed = walletSchema.safeParse({
-      to_email: toEmail, currency, amount: parseFloat(amount),
+    const parsed = walletNumberSchema.safeParse({
+      to_wallet_number: toWallet.trim().toUpperCase(),
+      amount: parseFloat(amount),
       description: description || undefined,
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
-    if (recipientStatus !== "valid") { toast.error("Recipient is not a registered user"); return; }
-    const sel = wallets.find((w) => w.currency === currency);
-    if (sel && parsed.data.amount > Number(sel.balance)) { toast.error("Insufficient balance"); return; }
+    if (lookupStatus !== "found" || !lookup) { toast.error("Recipient wallet not found"); return; }
+    if (!matchingSenderWallet) {
+      toast.error(`You need a ${lookup.currency} wallet to send to this recipient`);
+      return;
+    }
+    if (parsed.data.amount > Number(matchingSenderWallet.balance)) {
+      toast.error("Insufficient balance"); return;
+    }
 
     requirePin(async (pin) => {
-      const { error } = await supabase.rpc("transfer_funds", {
-        _to_email: parsed.data.to_email,
-        _currency: parsed.data.currency,
+      const { error } = await supabase.rpc("transfer_funds_by_wallet", {
+        _to_wallet_number: parsed.data.to_wallet_number,
         _amount: parsed.data.amount,
         _description: parsed.data.description ?? null,
         _pin: pin,
@@ -131,7 +139,6 @@ export default function SendMoney() {
         _phone: parsed.data.phone, _amount: parsed.data.amount, _pin: pin,
       });
       if (error) { toast.error(error.message); return; }
-      // trigger B2C edge function (auto)
       if (data?.payout_id) {
         await supabase.functions.invoke("intasend-b2c", { body: { payout_id: data.payout_id } });
       }
@@ -144,52 +151,88 @@ export default function SendMoney() {
     <div className="space-y-6 max-w-xl pb-20 md:pb-0">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Send money</h1>
-        <p className="text-muted-foreground">To another AbanRemit user or to an M-Pesa phone number.</p>
+        <p className="text-muted-foreground">To another AbanRemit wallet number or to an M-Pesa phone.</p>
       </div>
 
       <Tabs defaultValue="wallet">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="wallet"><AtSign className="mr-2 h-4 w-4" />To wallet</TabsTrigger>
+          <TabsTrigger value="wallet"><Hash className="mr-2 h-4 w-4" />To wallet</TabsTrigger>
           <TabsTrigger value="mpesa"><Smartphone className="mr-2 h-4 w-4" />To M-Pesa</TabsTrigger>
         </TabsList>
 
         <TabsContent value="wallet">
           <Card>
             <CardHeader>
-              <CardTitle>Send to wallet</CardTitle>
-              <CardDescription>We validate the recipient before you send.</CardDescription>
+              <CardTitle>Send to wallet number</CardTitle>
+              <CardDescription>Enter the recipient's AbanRemit wallet number (ABN + 10 digits).</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={onSendWallet} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Recipient email</Label>
-                  <Input id="email" type="email" value={toEmail} onChange={(e) => setToEmail(e.target.value)} required />
-                  {recipientStatus === "checking" && <p className="text-xs text-muted-foreground">Checking…</p>}
-                  {recipientStatus === "valid" && <p className="text-xs text-success-foreground" style={{color: "hsl(var(--success))"}}>✓ Valid AbanRemit user</p>}
-                  {recipientStatus === "invalid" && <p className="text-xs text-destructive">Not a registered user</p>}
+                  <Label htmlFor="wn">Recipient wallet number</Label>
+                  <Input
+                    id="wn"
+                    value={toWallet}
+                    onChange={(e) => setToWallet(e.target.value.toUpperCase())}
+                    placeholder="ABN1234567890"
+                    className="font-mono"
+                    maxLength={13}
+                    required
+                  />
+                  {lookupStatus === "checking" && (
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Looking up…
+                    </p>
+                  )}
+                  {lookupStatus === "found" && lookup && (
+                    <div className="rounded-md border bg-muted/40 p-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{lookup.full_name || "AbanRemit user"}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {lookup.currency} wallet · {lookup.wallet_number}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {lookupStatus === "notfound" && (
+                    <p className="flex items-center gap-1 text-xs text-destructive">
+                      <XCircle className="h-3 w-3" /> Wallet number not found
+                    </p>
+                  )}
+                  {lookupStatus === "self" && (
+                    <p className="flex items-center gap-1 text-xs text-destructive">
+                      <XCircle className="h-3 w-3" /> You can't send to your own wallet
+                    </p>
+                  )}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>From wallet</Label>
-                    <Select value={currency} onValueChange={setCurrency}>
-                      <SelectTrigger><SelectValue placeholder="Pick wallet" /></SelectTrigger>
-                      <SelectContent>
-                        {wallets.map((w) => (
-                          <SelectItem key={w.id} value={w.currency}>{w.currency} — {formatMoney(w.balance, w.currency)}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                {lookup && !matchingSenderWallet && (
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+                    You need a {lookup.currency} wallet to send to this recipient. Create one from the Wallets page.
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="amt">Amount</Label>
-                    <Input id="amt" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
+                )}
+
+                {matchingSenderWallet && (
+                  <div className="rounded-md border bg-card p-3 text-xs">
+                    <p className="text-muted-foreground">Sending from your {matchingSenderWallet.currency} wallet</p>
+                    <p className="font-semibold">{formatMoney(matchingSenderWallet.balance, matchingSenderWallet.currency)} available</p>
                   </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="amt">Amount {lookup ? `(${lookup.currency})` : ""}</Label>
+                  <Input id="amt" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="desc">Note (optional)</Label>
                   <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} rows={2} />
                 </div>
-                <Button type="submit" className="w-full" disabled={!wallets.length}>
+
+                <Button type="submit" className="w-full" disabled={lookupStatus !== "found" || !matchingSenderWallet}>
                   <Send className="mr-2 h-4 w-4" /> Send transfer
                 </Button>
               </form>
@@ -201,7 +244,7 @@ export default function SendMoney() {
           <Card>
             <CardHeader>
               <CardTitle>Send to M-Pesa</CardTitle>
-              <CardDescription>Deducted from your KES wallet. Auto-paid out via IntaSend.</CardDescription>
+              <CardDescription>Deducted from your KES wallet. Paid out via M-Pesa B2C.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={onSendMpesa} className="space-y-4">
