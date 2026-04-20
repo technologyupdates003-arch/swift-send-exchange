@@ -29,18 +29,32 @@ export default function Wallets() {
   const available = ALL_CURRENCIES.filter((c) => !existingCurrencies.has(c));
 
   const create = async () => {
-    if (!newCurrency || !user) return;
+    if (!newCurrency || !user || creating) return;
+    if (existingCurrencies.has(newCurrency)) {
+      toast.error(`You already have a ${newCurrency} wallet`);
+      return;
+    }
     setCreating(true);
     const { error } = await supabase.from("wallets").insert({
       user_id: user.id,
       currency: newCurrency as any,
       balance: 0,
     });
-    setCreating(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      setCreating(false);
+      // Unique-violation safety net
+      if ((error as any).code === "23505") {
+        toast.error(`You already have a ${newCurrency} wallet`);
+        await load();
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     toast.success(`${newCurrency} wallet created`);
     setNewCurrency("");
-    load();
+    await load();
+    setCreating(false);
   };
 
   const copyNumber = async (num: string) => {
