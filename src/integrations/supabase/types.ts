@@ -440,6 +440,7 @@ export type Database = {
           is_frozen: boolean
           updated_at: string
           user_id: string
+          wallet_number: string
         }
         Insert: {
           balance?: number
@@ -449,6 +450,7 @@ export type Database = {
           is_frozen?: boolean
           updated_at?: string
           user_id: string
+          wallet_number?: string
         }
         Update: {
           balance?: number
@@ -458,6 +460,7 @@ export type Database = {
           is_frozen?: boolean
           updated_at?: string
           user_id?: string
+          wallet_number?: string
         }
         Relationships: []
       }
@@ -571,6 +574,7 @@ export type Database = {
         }
         Returns: Json
       }
+      generate_wallet_number: { Args: never; Returns: string }
       has_pin: { Args: never; Returns: boolean }
       has_role: {
         Args: {
@@ -580,6 +584,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin_any: { Args: never; Returns: boolean }
+      lookup_wallet: { Args: { _wallet_number: string }; Returns: Json }
       request_withdrawal:
         | {
             Args: {
@@ -623,6 +628,15 @@ export type Database = {
             }
             Returns: Json
           }
+      transfer_funds_by_wallet: {
+        Args: {
+          _amount: number
+          _description: string
+          _pin: string
+          _to_wallet_number: string
+        }
+        Returns: Json
+      }
       verify_transaction_pin: { Args: { _pin: string }; Returns: boolean }
       withdraw_to_mpesa: {
         Args: { _amount: number; _phone: string; _pin: string }
