@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase as sb } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
+import { InstallBanner } from "@/components/InstallBanner";
 
 const supabase = sb as any;
 
@@ -62,6 +63,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
+      <InstallBanner />
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
         <Logo size="sm" />
         <div className="flex items-center gap-2">
