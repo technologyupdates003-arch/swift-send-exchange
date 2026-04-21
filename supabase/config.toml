@@ -1,1 +1,4 @@
 project_id = "vqdcdzkngrsnfzdayywh"
+
+[functions.virtualpay-webhook]
+verify_jwt = false
