@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
-import { CreditCard, Building2, Wallet, Copy, ExternalLink } from "lucide-react";
+import { CreditCard, Building2, Wallet, Copy, ExternalLink, ShieldCheck, Lock } from "lucide-react";
 
 const supabase = sb as any;
 
@@ -109,13 +109,41 @@ export default function FundWallet() {
           <Card>
             <CardHeader>
               <CardTitle>Pay with card</CardTitle>
-              <CardDescription>Opens VirtualPay's secure checkout in a new tab.</CardDescription>
+              <CardDescription>
+                You'll enter your card details on VirtualPay's PCI-DSS secure hosted page. Card data never touches our servers.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    <span>Accepted cards</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center rounded-md border bg-background px-2 py-1 text-[11px] font-bold tracking-wider text-[#1a1f71]">
+                      VISA
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 rounded-md border bg-background px-2 py-1">
+                      <span className="h-3 w-3 rounded-full bg-[#eb001b]" />
+                      <span className="-ml-1.5 h-3 w-3 rounded-full bg-[#f79e1b] mix-blend-multiply" />
+                      <span className="ml-1 text-[10px] font-semibold text-foreground">Mastercard</span>
+                    </span>
+                  </div>
+                </div>
+                <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Lock className="mt-0.5 h-3 w-3 shrink-0" />
+                  Encrypted end-to-end. 3-D Secure supported. Your wallet auto-credits after the bank confirms the charge.
+                </p>
+              </div>
+
               <Button onClick={() => submit("card")} disabled={loading !== null} className="w-full">
                 <ExternalLink className="mr-2 h-4 w-4" />
-                {loading === "card" ? "Opening checkout..." : "Continue to card payment"}
+                {loading === "card" ? "Opening secure checkout..." : "Continue to secure card payment"}
               </Button>
+              <p className="text-center text-[11px] text-muted-foreground">
+                Powered by VirtualPay · PCI-DSS compliant
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
