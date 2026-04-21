@@ -114,11 +114,24 @@ export default function Withdraw() {
     if (!bankId || !bCurrency || !bAmt) { toast.error("Fill all fields"); return; }
     const amt = parseFloat(bAmt);
     requirePin(async (pin) => {
-      const { error } = await supabase.rpc("request_withdrawal", {
+      const { data, error } = await supabase.rpc("request_withdrawal", {
         _bank_account_id: bankId, _currency: bCurrency, _amount: amt, _pin: pin,
       });
       if (error) { toast.error(error.message); return; }
-      toast.success("Withdrawal requested"); setBAmt(""); load();
+      // Trigger VirtualPay payout immediately (best-effort; admin can also retry)
+      if (data?.withdrawal_id) {
+        const { data: payRes, error: payErr } = await supabase.functions.invoke("virtualpay-payout", {
+          body: { withdrawal_id: data.withdrawal_id },
+        });
+        if (payErr || !payRes?.success) {
+          toast.warning("Withdrawal logged. Bank payout queued for admin review.");
+        } else {
+          toast.success("Bank payout sent via VirtualPay");
+        }
+      } else {
+        toast.success("Withdrawal requested");
+      }
+      setBAmt(""); load();
       navigate("/transactions");
     });
   };
