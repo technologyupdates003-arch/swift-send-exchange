@@ -431,6 +431,74 @@ export type Database = {
         }
         Relationships: []
       }
+      virtualpay_transactions: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          bank_details: Json | null
+          checkout_url: string | null
+          completed_at: string | null
+          created_at: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          flow: string
+          id: string
+          metadata: Json | null
+          provider_reference: string | null
+          provider_response: Json | null
+          reference: string
+          status: string
+          updated_at: string
+          user_id: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          bank_details?: Json | null
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          flow: string
+          id?: string
+          metadata?: Json | null
+          provider_reference?: string | null
+          provider_response?: Json | null
+          reference: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          bank_details?: Json | null
+          checkout_url?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          flow?: string
+          id?: string
+          metadata?: Json | null
+          provider_reference?: string | null
+          provider_response?: Json | null
+          reference?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          withdrawal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "virtualpay_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           balance: number
