@@ -20,6 +20,8 @@ import Kyc from "./pages/Kyc";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import SuperAdmin from "./pages/SuperAdmin";
+import Reports from "./pages/Reports";
+import Checkout from "./pages/Checkout";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +56,8 @@ const App = () => (
               <Route path="/admin" element={<Admin />} />
               <Route path="/super-admin" element={<SuperAdmin />} />
               <Route path="/transactions" element={<Transactions />} />
+              <Route path="/reports" element={<Reports />} />
+              <Route path="/checkout" element={<Checkout />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
