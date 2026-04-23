@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import SuperAdmin from "./pages/SuperAdmin";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
+import AbanCoin from "./pages/AbanCoin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/aban-coin" element={<AbanCoin />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
