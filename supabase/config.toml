@@ -1,4 +1,10 @@
 project_id = "vqdcdzkngrsnfzdayywh"
 
-[functions.virtualpay-webhook]
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.intasend-webhook]
+verify_jwt = false
+
+[functions.mpesa-b2c-callback]
 verify_jwt = false

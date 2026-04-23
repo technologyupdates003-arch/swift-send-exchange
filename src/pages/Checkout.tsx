@@ -8,65 +8,76 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
-import { ExternalLink, ShieldCheck, Lock, CreditCard, FlaskConical } from "lucide-react";
+import { formatMoney } from "@/lib/format";
+import { ShieldCheck, Lock, CreditCard, FlaskConical, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
-const VP_DEMO_BRANDING = "https://evirtualpay.com/v2/vp_interface/payment-branding/aQZmJs92uiiWfJCeejsIErwMSjqWEbknQS2JkyGByAS1kFnD0cTWn1";
 
 const schema = z.object({
   amount: z.number().positive(),
-  currency: z.enum(["USD", "EUR", "GBP", "KES", "NGN"]),
+  currency: z.enum(["NGN", "USD", "KES"]),
+  number: z.string().regex(/^\d{12,19}$/),
+  expiry: z.string().regex(/^(0[1-9]|1[0-2])\/?(\d{2}|\d{4})$/),
+  cvv: z.string().regex(/^\d{3,4}$/),
 });
 
 export default function Checkout() {
-  const [amount, setAmount] = useState("10");
-  const [currency, setCurrency] = useState("USD");
+  const [amount, setAmount] = useState("100");
+  const [currency, setCurrency] = useState<"NGN" | "USD" | "KES">("NGN");
+  const [number, setNumber] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lastRef, setLastRef] = useState<string | null>(null);
+  const [result, setResult] = useState<any>(null);
 
-  const launch = async () => {
-    const parsed = schema.safeParse({ amount: parseFloat(amount), currency });
-    if (!parsed.success) { toast.error("Enter a valid amount"); return; }
-    setLoading(true);
-    const { data, error } = await supabase.functions.invoke("virtualpay-init", {
-      body: { flow: "card", amount: parsed.data.amount, currency: parsed.data.currency },
+  const formatCardNumber = (v: string) => v.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
+
+  const submit = async () => {
+    const cleanNum = number.replace(/\s/g, "");
+    const [mm, yy] = expiry.split("/");
+    const parsed = schema.safeParse({
+      amount: parseFloat(amount), currency, number: cleanNum, expiry, cvv,
+    });
+    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    setLoading(true); setResult(null);
+    const { data, error } = await supabase.functions.invoke("paystack-charge-card", {
+      body: {
+        amount: parsed.data.amount, currency,
+        card: { number: cleanNum, cvv, expiry_month: mm, expiry_year: yy },
+      },
     });
     setLoading(false);
-    if (error || !data?.success || !data?.checkout_url) {
-      toast.error(error?.message || data?.error || "Could not open checkout");
-      return;
-    }
-    setLastRef(data.reference);
-    window.open(data.checkout_url, "_blank");
-    toast.success("Checkout opened in new tab");
+    if (error) { toast.error(error.message); return; }
+    setResult(data);
+    if (data?.status === "success") toast.success("Test charge successful");
+    else if (data?.next_action) toast.info(`Additional verification: ${data.next_action}`);
+    else if (!data?.success) toast.error(data?.message || "Charge failed");
   };
-
-  const openDemo = () => window.open(VP_DEMO_BRANDING, "_blank");
 
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">My Checkout</h1>
-          <p className="text-muted-foreground">Test the VirtualPay-hosted payment gateway.</p>
+          <p className="text-muted-foreground">Test the white-labeled Paystack card flow.</p>
         </div>
-        <Badge variant="outline" className="gap-1"><FlaskConical className="h-3 w-3" /> Sandbox / Test mode</Badge>
+        <Badge variant="outline" className="gap-1"><FlaskConical className="h-3 w-3" /> Live mode</Badge>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Run a test transaction</CardTitle>
-          <CardDescription>Enter an amount and we'll open the VirtualPay hosted checkout in a new tab.</CardDescription>
+          <CardDescription>Card data goes straight to Paystack — never stored in our DB.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
+              <Select value={currency} onValueChange={(v: any) => setCurrency(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ALL_CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  <SelectItem value="NGN">NGN</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="KES">KES</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -76,37 +87,30 @@ export default function Checkout() {
             </div>
           </div>
 
+          <div className="rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card p-4 space-y-3">
+            <Input placeholder="1234 5678 9012 3456" value={number} onChange={(e) => setNumber(formatCardNumber(e.target.value))} className="font-mono text-lg tracking-wider" />
+            <div className="grid grid-cols-2 gap-3">
+              <Input placeholder="MM/YY" maxLength={5} value={expiry} onChange={(e) => {
+                let v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+                setExpiry(v);
+              }} className="font-mono" />
+              <Input type="password" maxLength={4} placeholder="CVV" value={cvv} onChange={(e) => setCvv(e.target.value.replace(/\D/g, ""))} className="font-mono" />
+            </div>
+          </div>
+
           <div className="rounded-lg border bg-muted/40 p-3 space-y-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Hosted by VirtualPay · PCI-DSS compliant</div>
-            <div className="flex items-center gap-2"><Lock className="h-4 w-4" /> Card data is captured on VirtualPay's secure page — never on our servers.</div>
+            <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Powered by Paystack · PCI-DSS compliant</div>
+            <div className="flex items-center gap-2"><Lock className="h-4 w-4" /> 3-D Secure supported · No card data stored on our servers</div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button onClick={launch} disabled={loading} className="flex-1 gap-2">
-              <ExternalLink className="h-4 w-4" />
-              {loading ? "Opening checkout…" : `Pay ${formatMoney(parseFloat(amount || "0"), currency)}`}
-            </Button>
-            <Button variant="outline" onClick={openDemo} className="gap-2">
-              <ExternalLink className="h-4 w-4" /> Open VirtualPay demo
-            </Button>
-          </div>
+          <Button onClick={submit} disabled={loading} className="w-full">
+            {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</> : `Pay ${formatMoney(parseFloat(amount || "0"), currency)}`}
+          </Button>
 
-          {lastRef && (
-            <p className="text-xs text-muted-foreground">
-              Last reference: <span className="font-mono text-foreground">{lastRef}</span> — track its status in Reports.
-            </p>
+          {result && (
+            <pre className="rounded-lg border bg-muted/30 p-3 text-xs overflow-auto max-h-60">{JSON.stringify(result, null, 2)}</pre>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">How it works</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <p>1. We create a session with VirtualPay using your merchant credentials.</p>
-          <p>2. You're redirected to VirtualPay's secure hosted page to complete payment.</p>
-          <p>3. VirtualPay confirms the result via webhook and the transaction appears in your Reports.</p>
         </CardContent>
       </Card>
     </div>

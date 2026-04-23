@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, Wallet, Send, History, LogOut, RefreshCw, ShieldCheck, Building2, Settings as SettingsIcon, Shield, Crown, Plus, ArrowUpFromLine, FileText, CreditCard } from "lucide-react";
+import { LayoutDashboard, Wallet, Send, History, LogOut, RefreshCw, ShieldCheck, Settings as SettingsIcon, Shield, Crown, Plus, ArrowUpFromLine, FileText, CreditCard, Coins } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const baseNav = [
   { to: "/send", label: "Send", icon: Send },
   { to: "/withdraw", label: "Withdraw", icon: ArrowUpFromLine },
   { to: "/exchange", label: "Exchange", icon: RefreshCw },
+  { to: "/aban-coin", label: "Aban Coin", icon: Coins },
   { to: "/transactions", label: "Transactions", icon: History },
   { to: "/reports", label: "Reports", icon: FileText },
   { to: "/checkout", label: "My Checkout", icon: CreditCard },
