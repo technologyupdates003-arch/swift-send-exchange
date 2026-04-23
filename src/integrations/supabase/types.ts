@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      aban_market: {
+        Row: {
+          id: number
+          reserve_abn: number
+          reserve_usd: number
+          total_volume_usd: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          reserve_abn?: number
+          reserve_usd?: number
+          total_volume_usd?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          reserve_abn?: number
+          reserve_usd?: number
+          total_volume_usd?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_config: {
         Row: {
           description: string | null
@@ -281,13 +305,16 @@ export type Database = {
         }
         Relationships: []
       }
-      paystack_transactions: {
+      mpesa_stk_requests: {
         Row: {
           amount: number
+          completed_at: string | null
           created_at: string
-          currency: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason: string | null
           id: string
-          payment_method: string
+          invoice_id: string | null
+          phone_number: string
+          provider_response: Json | null
           reference: string
           status: string
           updated_at: string
@@ -295,10 +322,13 @@ export type Database = {
         }
         Insert: {
           amount: number
+          completed_at?: string | null
           created_at?: string
-          currency: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason?: string | null
           id?: string
-          payment_method: string
+          invoice_id?: string | null
+          phone_number: string
+          provider_response?: Json | null
           reference: string
           status?: string
           updated_at?: string
@@ -306,14 +336,152 @@ export type Database = {
         }
         Update: {
           amount?: number
+          completed_at?: string | null
           created_at?: string
-          currency?: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason?: string | null
           id?: string
-          payment_method?: string
+          invoice_id?: string | null
+          phone_number?: string
+          provider_response?: Json | null
           reference?: string
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      paystack_charges: {
+        Row: {
+          amount: number
+          card_brand: string | null
+          card_last4: string | null
+          completed_at: string | null
+          created_at: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason: string | null
+          id: string
+          next_action: string | null
+          provider_response: Json | null
+          reference: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          card_brand?: string | null
+          card_last4?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason?: string | null
+          id?: string
+          next_action?: string | null
+          provider_response?: Json | null
+          reference: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          card_brand?: string | null
+          card_last4?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason?: string | null
+          id?: string
+          next_action?: string | null
+          provider_response?: Json | null
+          reference?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paystack_recipients: {
+        Row: {
+          bank_account_id: string
+          bank_code: string
+          created_at: string
+          id: string
+          recipient_code: string
+          user_id: string
+        }
+        Insert: {
+          bank_account_id: string
+          bank_code: string
+          created_at?: string
+          id?: string
+          recipient_code: string
+          user_id: string
+        }
+        Update: {
+          bank_account_id?: string
+          bank_code?: string
+          created_at?: string
+          id?: string
+          recipient_code?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paystack_transfers: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          completed_at: string | null
+          created_at: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason: string | null
+          fee: number
+          id: string
+          provider_response: Json | null
+          reference: string
+          requires_otp: boolean
+          status: string
+          transfer_code: string | null
+          updated_at: string
+          user_id: string
+          withdrawal_id: string | null
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason?: string | null
+          fee?: number
+          id?: string
+          provider_response?: Json | null
+          reference: string
+          requires_otp?: boolean
+          status?: string
+          transfer_code?: string | null
+          updated_at?: string
+          user_id: string
+          withdrawal_id?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          completed_at?: string | null
+          created_at?: string
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          failure_reason?: string | null
+          fee?: number
+          id?: string
+          provider_response?: Json | null
+          reference?: string
+          requires_otp?: boolean
+          status?: string
+          transfer_code?: string | null
+          updated_at?: string
+          user_id?: string
+          withdrawal_id?: string | null
         }
         Relationships: []
       }
@@ -431,74 +599,6 @@ export type Database = {
         }
         Relationships: []
       }
-      virtualpay_transactions: {
-        Row: {
-          amount: number
-          bank_account_id: string | null
-          bank_details: Json | null
-          checkout_url: string | null
-          completed_at: string | null
-          created_at: string
-          currency: Database["public"]["Enums"]["wallet_currency"]
-          flow: string
-          id: string
-          metadata: Json | null
-          provider_reference: string | null
-          provider_response: Json | null
-          reference: string
-          status: string
-          updated_at: string
-          user_id: string
-          withdrawal_id: string | null
-        }
-        Insert: {
-          amount: number
-          bank_account_id?: string | null
-          bank_details?: Json | null
-          checkout_url?: string | null
-          completed_at?: string | null
-          created_at?: string
-          currency: Database["public"]["Enums"]["wallet_currency"]
-          flow: string
-          id?: string
-          metadata?: Json | null
-          provider_reference?: string | null
-          provider_response?: Json | null
-          reference: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          withdrawal_id?: string | null
-        }
-        Update: {
-          amount?: number
-          bank_account_id?: string | null
-          bank_details?: Json | null
-          checkout_url?: string | null
-          completed_at?: string | null
-          created_at?: string
-          currency?: Database["public"]["Enums"]["wallet_currency"]
-          flow?: string
-          id?: string
-          metadata?: Json | null
-          provider_reference?: string | null
-          provider_response?: Json | null
-          reference?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          withdrawal_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "virtualpay_transactions_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "bank_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       wallets: {
         Row: {
           balance: number
@@ -578,6 +678,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aban_buy_abn: {
+        Args: { _pin: string; _usd_amount: number }
+        Returns: Json
+      }
+      aban_quote: { Args: never; Returns: Json }
+      aban_sell_abn: {
+        Args: { _abn_amount: number; _pin: string }
+        Returns: Json
+      }
       admin_adjust_balance: {
         Args: {
           _amount: number
@@ -725,7 +834,7 @@ export type Database = {
         | "deposit"
         | "withdrawal"
         | "exchange"
-      wallet_currency: "KES" | "NGN" | "USD" | "EUR" | "GBP"
+      wallet_currency: "KES" | "NGN" | "USD" | "EUR" | "GBP" | "ABN"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -868,7 +977,7 @@ export const Constants = {
         "withdrawal",
         "exchange",
       ],
-      wallet_currency: ["KES", "NGN", "USD", "EUR", "GBP"],
+      wallet_currency: ["KES", "NGN", "USD", "EUR", "GBP", "ABN"],
     },
   },
 } as const
