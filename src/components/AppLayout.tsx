@@ -52,6 +52,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<string>("active");
 
   useEffect(() => {
     if (!user) return;
@@ -60,6 +61,13 @@ export default function AppLayout() {
       setIsAdmin(roles.includes("admin"));
       setIsSuperAdmin(roles.includes("super_admin"));
     });
+    supabase.from("profiles").select("account_status").eq("id", user.id).maybeSingle()
+      .then(({ data }: any) => data?.account_status && setAccountStatus(data.account_status));
+    const ch = supabase.channel(`profile-${user.id}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        (p: any) => p.new?.account_status && setAccountStatus(p.new.account_status))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [user]);
 
   const handleLogout = async () => { await signOut(); navigate("/login"); };
@@ -95,6 +103,12 @@ export default function AppLayout() {
         </aside>
 
         <main className="flex-1 p-4 pb-24 md:p-8 md:pb-8 max-w-6xl mx-auto w-full">
+          {accountStatus !== "active" && (
+            <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Your account is <strong className="capitalize">{accountStatus}</strong>. You can browse, but money movement
+              is disabled until an admin reactivates it. Please contact support.
+            </div>
+          )}
           <Outlet />
         </main>
       </div>
