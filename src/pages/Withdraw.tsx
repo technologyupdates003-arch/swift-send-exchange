@@ -200,8 +200,12 @@ export default function Withdraw() {
         if (error) { toast.error(error.message); return; }
         if (data?.payout_id) {
           const { data: b2c, error: bErr } = await supabase.functions.invoke("mpesa-b2c", { body: { payout_id: data.payout_id } });
-          if (bErr || !b2c?.success) { toast.warning(bErr?.message || b2c?.error || "B2C queued for retry"); }
-          else toast.success("M-Pesa B2C sent");
+          if (bErr || !b2c?.success) {
+            const msg = bErr?.message || b2c?.error || "B2C failed";
+            toast.error(`Payout: ${msg}`, { duration: 8000 });
+          } else {
+            toast.success("M-Pesa B2C sent — funds en route");
+          }
         }
         setMAmt(""); load(); navigate("/transactions");
       } finally { setMLoading(false); }
