@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.mpesa-b2c-callback]
 verify_jwt = false
+
+[functions.btc-webhook]
+verify_jwt = false
