@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 import { CreditCard, Smartphone, Wallet, ShieldCheck, Lock, Coins, Loader2 } from "lucide-react";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
@@ -55,6 +56,8 @@ export default function FundWallet() {
   const [stkAmount, setStkAmount] = useState("");
   const [stkPhone, setStkPhone] = useState("");
   const [stkLoading, setStkLoading] = useState(false);
+  const [stkRef, setStkRef] = useState<string | null>(null);
+  const [stkPolling, setStkPolling] = useState(false);
 
   // ABN state
   const [abanUsd, setAbanUsd] = useState("");
@@ -66,6 +69,11 @@ export default function FundWallet() {
     supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
     supabase.rpc("aban_quote").then(({ data }: any) => data && setAbanQuote(data));
   }, [user]);
+
+  // Live wallet refresh — any change to user's money tables updates the cards
+  useWalletRealtime(user?.id, () => {
+    supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
+  });
 
   const formatCardNumber = (v: string) => v.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
 
@@ -123,7 +131,9 @@ export default function FundWallet() {
     } else if (data.next_action) {
       setCardStep(data.next_action as CardStep);
     } else if (!data.success) {
-      toast.error(data.message || "Card declined");
+      const reason = data.gateway_response || data.message || "Card declined";
+      toast.error(reason, { duration: 6000 });
+      setStepHint(reason);
     }
   };
 
@@ -143,7 +153,36 @@ export default function FundWallet() {
     setStkLoading(false);
     if (error || !data?.success) { toast.error(error?.message || data?.error || "STK failed"); return; }
     toast.success(data.message || "Approve the M-Pesa prompt on your phone");
-    setStkAmount(""); setStkPhone("");
+    setStkRef(data.reference);
+    setStkPolling(true);
+    pollStk(data.reference);
+  };
+
+  const pollStk = async (reference: string) => {
+    let tries = 0;
+    const maxTries = 30; // ~90s at 3s interval
+    const tick = async () => {
+      tries++;
+      const { data } = await supabase.functions.invoke("intasend-status", { body: { reference } });
+      if (data?.status === "completed") {
+        toast.success("M-Pesa payment received — wallet credited");
+        setStkPolling(false); setStkRef(null); setStkAmount(""); setStkPhone("");
+        refreshWallets();
+        return;
+      }
+      if (data?.status === "failed") {
+        toast.error(data.message || "Payment failed");
+        setStkPolling(false); setStkRef(null);
+        return;
+      }
+      if (tries >= maxTries) {
+        toast.warning("Still waiting on M-Pesa. Check Transactions later.");
+        setStkPolling(false);
+        return;
+      }
+      setTimeout(tick, 3000);
+    };
+    setTimeout(tick, 3000);
   };
 
   const buyAban = async () => {
@@ -298,9 +337,15 @@ export default function FundWallet() {
                 <Label>Amount (KES)</Label>
                 <Input type="number" min="10" value={stkAmount} onChange={(e) => setStkAmount(e.target.value)} />
               </div>
-              <Button onClick={submitStk} disabled={stkLoading} className="w-full">
+              <Button onClick={submitStk} disabled={stkLoading || stkPolling} className="w-full">
                 {stkLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending prompt…</> : <><Smartphone className="mr-2 h-4 w-4" />Send STK push</>}
               </Button>
+              {stkPolling && (
+                <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Waiting for M-Pesa confirmation… enter PIN on your phone.
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
