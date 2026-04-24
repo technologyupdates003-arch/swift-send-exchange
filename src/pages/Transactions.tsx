@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { formatMoney } from "@/lib/format";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 interface Tx {
   id: string; type: string; amount: number; currency: string;
@@ -18,12 +19,13 @@ export default function Transactions() {
   const [txs, setTxs] = useState<Tx[]>([]);
   const [filter, setFilter] = useState<string>("all");
 
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("transactions").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+  const load = () => {
+    supabase.from("transactions").select("*").order("created_at", { ascending: false }).then(({ data }: any) => {
       if (data) setTxs(data as any);
     });
-  }, [user]);
+  };
+  useEffect(() => { if (user) load(); /* eslint-disable-next-line */ }, [user]);
+  useWalletRealtime(user?.id, load);
 
   const filtered = filter === "all" ? txs : txs.filter((t) => t.type === filter);
 

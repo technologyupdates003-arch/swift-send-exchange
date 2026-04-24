@@ -134,6 +134,54 @@ export type Database = {
         }
         Relationships: []
       }
+      btc_deposits: {
+        Row: {
+          abn_credited: number | null
+          amount_btc: number | null
+          amount_usd: number | null
+          btc_address: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          provider: string | null
+          provider_payment_id: string | null
+          provider_response: Json | null
+          status: string
+          txid: string | null
+          user_id: string
+        }
+        Insert: {
+          abn_credited?: number | null
+          amount_btc?: number | null
+          amount_usd?: number | null
+          btc_address: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          provider?: string | null
+          provider_payment_id?: string | null
+          provider_response?: Json | null
+          status?: string
+          txid?: string | null
+          user_id: string
+        }
+        Update: {
+          abn_credited?: number | null
+          amount_btc?: number | null
+          amount_usd?: number | null
+          btc_address?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          provider?: string | null
+          provider_payment_id?: string | null
+          provider_response?: Json | null
+          status?: string
+          txid?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       exchange_rates: {
         Row: {
           from_currency: Database["public"]["Enums"]["wallet_currency"]
@@ -487,6 +535,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string
           created_at: string
           email: string | null
           full_name: string | null
@@ -497,6 +546,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_status?: string
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -507,6 +557,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_status?: string
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -535,6 +586,48 @@ export type Database = {
           created_at?: string
           pin_hash?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transaction_reversals: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          id: string
+          initiated_by: string
+          original_transaction_id: string
+          reason: string
+          released_at: string | null
+          released_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          initiated_by: string
+          original_transaction_id: string
+          reason: string
+          released_at?: string | null
+          released_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          initiated_by?: string
+          original_transaction_id?: string
+          reason?: string
+          released_at?: string | null
+          released_by?: string | null
+          status?: string
           user_id?: string
         }
         Relationships: []
@@ -711,8 +804,26 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_hold_funds: {
+        Args: {
+          _amount: number
+          _currency: Database["public"]["Enums"]["wallet_currency"]
+          _original_tx?: string
+          _reason: string
+          _target_user: string
+        }
+        Returns: Json
+      }
+      admin_release_hold: {
+        Args: { _action: string; _hold_id: string; _note: string }
+        Returns: Json
+      }
       admin_resolve_flag: {
         Args: { _flag_id: string; _note: string }
+        Returns: Json
+      }
+      admin_set_account_status: {
+        Args: { _reason: string; _status: string; _target_user: string }
         Returns: Json
       }
       admin_set_role: {
@@ -760,6 +871,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_account_active: { Args: { _user: string }; Returns: boolean }
       is_admin_any: { Args: never; Returns: boolean }
       lookup_wallet: { Args: { _wallet_number: string }; Returns: Json }
       request_withdrawal:

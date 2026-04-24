@@ -182,6 +182,17 @@ function UserProfileDialog({ profile, wallets, roles, canManageRoles, canAdjustB
     setFlagReason(""); onClose();
   };
 
+  const setStatus = async (status: "active" | "pending" | "dormant" | "suspended") => {
+    const reason = prompt(`Reason to set account ${status} (min 5 chars):`);
+    if (!reason || reason.trim().length < 5) return;
+    const { error } = await sb.rpc("admin_set_account_status", {
+      _target_user: profile.id, _status: status, _reason: reason,
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`Account set to ${status}`);
+    onClose();
+  };
+
   const toggleRole = async (role: string, grant: boolean) => {
     const { error } = await sb.rpc("admin_set_role", { _target_user: profile.id, _role: role, _grant: grant });
     if (error) return toast.error(error.message);
@@ -254,6 +265,18 @@ function UserProfileDialog({ profile, wallets, roles, canManageRoles, canAdjustB
             <Input placeholder="Reason" value={flagReason} onChange={(e) => setFlagReason(e.target.value)} className="col-span-2" />
           </div>
           <Button size="sm" variant="destructive" onClick={flag}>Flag user</Button>
+        </section>
+
+        {/* Account status */}
+        <section className="rounded-lg border p-3 space-y-2">
+          <h3 className="text-sm font-semibold">Account status</h3>
+          <p className="text-xs text-muted-foreground">Dormant/pending/suspended users can sign in but cannot move money.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => setStatus("active")}>Activate / Approve</Button>
+            <Button size="sm" variant="outline" onClick={() => setStatus("pending")}>Mark pending</Button>
+            <Button size="sm" variant="outline" onClick={() => setStatus("dormant")}>Make dormant</Button>
+            <Button size="sm" variant="destructive" onClick={() => setStatus("suspended")}>Suspend</Button>
+          </div>
         </section>
 
         {/* Roles */}

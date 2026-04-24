@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
 import { Plus, Wallet as WalletIcon, Copy, Check } from "lucide-react";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 interface Wallet { id: string; currency: string; balance: number; wallet_number: string; }
 
@@ -24,6 +25,7 @@ export default function Wallets() {
   };
 
   useEffect(() => { if (user) load(); }, [user]);
+  useWalletRealtime(user?.id, load);
 
   const existingCurrencies = new Set(wallets.map((w) => w.currency));
   const available = ALL_CURRENCIES.filter((c) => !existingCurrencies.has(c));

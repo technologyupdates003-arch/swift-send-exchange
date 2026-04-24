@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Send, Wallet as WalletIcon, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { formatMoney } from "@/lib/format";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 interface Wallet { id: string; currency: string; balance: number; }
 interface Tx { id: string; type: string; amount: number; currency: string; description: string | null; created_at: string; }
@@ -17,9 +18,8 @@ export default function Dashboard() {
   const [recent, setRecent] = useState<Tx[]>([]);
   const [profileName, setProfileName] = useState("");
 
-  useEffect(() => {
+  const load = async () => {
     if (!user) return;
-    (async () => {
       const [w, t, p] = await Promise.all([
         supabase.from("wallets").select("*").order("currency"),
         supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(5),
@@ -28,8 +28,9 @@ export default function Dashboard() {
       if (w.data) setWallets(w.data as any);
       if (t.data) setRecent(t.data as any);
       if (p.data?.full_name) setProfileName(p.data.full_name);
-    })();
-  }, [user]);
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
+  useWalletRealtime(user?.id, load);
 
   return (
     <div className="space-y-8">
