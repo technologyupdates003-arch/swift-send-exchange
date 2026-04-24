@@ -103,6 +103,8 @@ Deno.serve(async (req) => {
     const status = r.data?.data?.status ?? r.data?.status;
     const psReference = r.data?.data?.reference ?? reference;
     const display_text = r.data?.data?.display_text ?? r.data?.message;
+    const gatewayResponse = r.data?.data?.gateway_response;
+    const psMessage = r.data?.message;
 
     // Map Paystack status -> our status
     let ourStatus = "pending";
@@ -116,6 +118,8 @@ Deno.serve(async (req) => {
     else if (status === "send_birthday") nextAction = "birthday";
     else if (status === "open_url") { nextAction = "3ds"; redirect = r.data?.data?.url; }
     else if (status === "pay_offline") nextAction = "offline";
+    // If Paystack returned a non-OK HTTP or a clearly bad gateway response without next-action, treat as failed
+    if (!r.ok && !nextAction && ourStatus !== "success") ourStatus = "failed";
 
     await admin.from("paystack_charges")
       .update({
@@ -124,7 +128,7 @@ Deno.serve(async (req) => {
         provider_response: r.data,
         card_brand: r.data?.data?.authorization?.brand,
         completed_at: ourStatus === "success" ? new Date().toISOString() : null,
-        failure_reason: ourStatus === "failed" ? (r.data?.data?.gateway_response || r.data?.message) : null,
+        failure_reason: ourStatus === "failed" ? (gatewayResponse || psMessage) : null,
       })
       .eq("reference", psReference);
 
@@ -144,7 +148,8 @@ Deno.serve(async (req) => {
       next_action: nextAction,
       display_text,
       redirect,
-      message: r.data?.message,
+      message: gatewayResponse || psMessage,
+      gateway_response: gatewayResponse,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("paystack-charge-card error", e);
