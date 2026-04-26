@@ -212,6 +212,8 @@ export default function FundWallet() {
   const copyText = async (s: string) => {
     try { await navigator.clipboard.writeText(s); toast.success("Copied"); } catch { /* ignore */ }
   };
+
+  return (
     <div className="space-y-6 max-w-2xl pb-20 md:pb-0">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Fund wallet</h1>
