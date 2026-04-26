@@ -365,6 +365,46 @@ export default function FundWallet() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="btc">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Bitcoin className="h-5 w-5 text-orange-500" /> Fund with Bitcoin</CardTitle>
+              <CardDescription>Send BTC to the generated address — your USD wallet auto-credits after 1 confirmation.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!btcInvoice && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Amount (USD)</Label>
+                    <Input type="number" min="1" step="0.01" placeholder="50.00" value={btcUsd} onChange={(e) => setBtcUsd(e.target.value)} />
+                  </div>
+                  <Button onClick={submitBtc} disabled={btcLoading} className="w-full">
+                    {btcLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating address…</> : <><Bitcoin className="mr-2 h-4 w-4" />Generate BTC address</>}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">Powered by NOWPayments. Confirmation usually takes 10–30 minutes.</p>
+                </>
+              )}
+              {btcInvoice && (
+                <div className="space-y-3">
+                  <div className="rounded-lg border bg-gradient-to-br from-orange-500/10 to-card p-4 space-y-2">
+                    <div className="flex justify-between text-xs text-muted-foreground"><span>Send exactly</span><span>${btcInvoice.amount_usd}</span></div>
+                    <div className="font-mono text-2xl font-bold">{btcInvoice.pay_amount_btc} BTC</div>
+                    <div className="text-xs text-muted-foreground">to address:</div>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 break-all rounded border bg-background px-2 py-1.5 text-xs font-mono">{btcInvoice.pay_address}</code>
+                      <Button size="icon" variant="outline" onClick={() => copyText(btcInvoice.pay_address)}><Copy className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Wallet credits automatically once your BTC payment confirms on the network. You can close this page — see status under Transactions.
+                  </div>
+                  <Button variant="outline" onClick={() => { setBtcInvoice(null); setBtcUsd(""); }} className="w-full">New deposit</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="aban">
           <Card>
             <CardHeader>
