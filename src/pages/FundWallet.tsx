@@ -198,7 +198,20 @@ export default function FundWallet() {
     supabase.rpc("aban_quote").then(({ data }: any) => data && setAbanQuote(data));
   };
 
-  return (
+  const submitBtc = async () => {
+    const usd = parseFloat(btcUsd);
+    if (!usd || usd < 1) { toast.error("Min $1 USD"); return; }
+    setBtcLoading(true);
+    const { data, error } = await supabase.functions.invoke("btc-deposit-init", { body: { amount_usd: usd } });
+    setBtcLoading(false);
+    if (error || !data?.success) { toast.error(error?.message || data?.error || "BTC processor error"); return; }
+    setBtcInvoice(data);
+    toast.success("Send BTC to the address shown — ABN credits automatically");
+  };
+
+  const copyText = async (s: string) => {
+    try { await navigator.clipboard.writeText(s); toast.success("Copied"); } catch { /* ignore */ }
+  };
     <div className="space-y-6 max-w-2xl pb-20 md:pb-0">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Fund wallet</h1>
