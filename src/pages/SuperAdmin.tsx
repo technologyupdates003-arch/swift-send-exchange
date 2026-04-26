@@ -47,6 +47,7 @@ export default function SuperAdmin() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="holds">Holds</TabsTrigger>
           <TabsTrigger value="audit">Audit log</TabsTrigger>
           {isSuper && <TabsTrigger value="config">Config</TabsTrigger>}
         </TabsList>
@@ -56,6 +57,7 @@ export default function SuperAdmin() {
           <UserManagement canManageRoles={isSuper} canAdjustBalance={isSuper || isFinance} />
         </TabsContent>
         <TabsContent value="transactions"><TransactionExplorer /></TabsContent>
+        <TabsContent value="holds"><HoldsManager /></TabsContent>
         <TabsContent value="audit"><AuditLog /></TabsContent>
         {isSuper && <TabsContent value="config"><SystemConfig /></TabsContent>}
       </Tabs>
