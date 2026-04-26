@@ -99,13 +99,7 @@ export default function FundWallet() {
   const submitStep = async () => {
     if (!chargeRef || !stepInput) return;
     setCardLoading(true);
-    const body: any = { amount: 0, currency: cardCurrency, card: { number: "0000000000000000", cvv: "000", expiry_month: "01", expiry_year: "30" }, reference: chargeRef };
-    // Re-call with the appropriate field — but charge endpoint uses submit_pin / submit_otp etc;
-    // our edge fn detects which based on field presence.
-    const cleanNum = cardNumber.replace(/\s/g, "");
-    const [mm, yyRaw] = cardExpiry.split("/");
-    body.card = { number: cleanNum, cvv: cardCvv, expiry_month: mm, expiry_year: yyRaw };
-    body.amount = parseFloat(cardAmount);
+    const body: any = { reference: chargeRef };
     if (cardStep === "pin") body.pin = stepInput;
     if (cardStep === "otp") body.otp = stepInput;
     if (cardStep === "phone") body.phone = stepInput;
