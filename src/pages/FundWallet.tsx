@@ -64,6 +64,11 @@ export default function FundWallet() {
   const [abanQuote, setAbanQuote] = useState<{ price_usd: number; reserve_abn: number; reserve_usd: number } | null>(null);
   const [abanLoading, setAbanLoading] = useState(false);
 
+  // BTC state
+  const [btcUsd, setBtcUsd] = useState("");
+  const [btcLoading, setBtcLoading] = useState(false);
+  const [btcInvoice, setBtcInvoice] = useState<{ pay_address: string; pay_amount_btc: number; amount_usd: number; payment_id: string } | null>(null);
+
   useEffect(() => {
     if (!user) return;
     supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
