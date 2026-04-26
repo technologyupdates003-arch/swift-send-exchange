@@ -232,9 +232,10 @@ export default function FundWallet() {
       </div>
 
       <Tabs defaultValue="card">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="card"><CreditCard className="mr-2 h-4 w-4" />Card</TabsTrigger>
           <TabsTrigger value="mpesa"><Smartphone className="mr-2 h-4 w-4" />M-Pesa</TabsTrigger>
+          <TabsTrigger value="btc"><Bitcoin className="mr-2 h-4 w-4" />BTC</TabsTrigger>
           <TabsTrigger value="aban"><Coins className="mr-2 h-4 w-4" />ABN</TabsTrigger>
         </TabsList>
 
