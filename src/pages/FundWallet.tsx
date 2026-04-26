@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
-import { CreditCard, Smartphone, Wallet, ShieldCheck, Lock, Coins, Loader2 } from "lucide-react";
+import { CreditCard, Smartphone, Wallet, ShieldCheck, Lock, Coins, Loader2, Bitcoin, Copy } from "lucide-react";
 import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
@@ -64,6 +64,11 @@ export default function FundWallet() {
   const [abanQuote, setAbanQuote] = useState<{ price_usd: number; reserve_abn: number; reserve_usd: number } | null>(null);
   const [abanLoading, setAbanLoading] = useState(false);
 
+  // BTC state
+  const [btcUsd, setBtcUsd] = useState("");
+  const [btcLoading, setBtcLoading] = useState(false);
+  const [btcInvoice, setBtcInvoice] = useState<{ pay_address: string; pay_amount_btc: number; amount_usd: number; payment_id: string } | null>(null);
+
   useEffect(() => {
     if (!user) return;
     supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
@@ -99,13 +104,7 @@ export default function FundWallet() {
   const submitStep = async () => {
     if (!chargeRef || !stepInput) return;
     setCardLoading(true);
-    const body: any = { amount: 0, currency: cardCurrency, card: { number: "0000000000000000", cvv: "000", expiry_month: "01", expiry_year: "30" }, reference: chargeRef };
-    // Re-call with the appropriate field — but charge endpoint uses submit_pin / submit_otp etc;
-    // our edge fn detects which based on field presence.
-    const cleanNum = cardNumber.replace(/\s/g, "");
-    const [mm, yyRaw] = cardExpiry.split("/");
-    body.card = { number: cleanNum, cvv: cardCvv, expiry_month: mm, expiry_year: yyRaw };
-    body.amount = parseFloat(cardAmount);
+    const body: any = { reference: chargeRef };
     if (cardStep === "pin") body.pin = stepInput;
     if (cardStep === "otp") body.otp = stepInput;
     if (cardStep === "phone") body.phone = stepInput;
@@ -199,6 +198,21 @@ export default function FundWallet() {
     supabase.rpc("aban_quote").then(({ data }: any) => data && setAbanQuote(data));
   };
 
+  const submitBtc = async () => {
+    const usd = parseFloat(btcUsd);
+    if (!usd || usd < 1) { toast.error("Min $1 USD"); return; }
+    setBtcLoading(true);
+    const { data, error } = await supabase.functions.invoke("btc-deposit-init", { body: { amount_usd: usd } });
+    setBtcLoading(false);
+    if (error || !data?.success) { toast.error(error?.message || data?.error || "BTC processor error"); return; }
+    setBtcInvoice(data);
+    toast.success("Send BTC to the address shown — ABN credits automatically");
+  };
+
+  const copyText = async (s: string) => {
+    try { await navigator.clipboard.writeText(s); toast.success("Copied"); } catch { /* ignore */ }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl pb-20 md:pb-0">
       <div>
@@ -218,9 +232,10 @@ export default function FundWallet() {
       </div>
 
       <Tabs defaultValue="card">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="card"><CreditCard className="mr-2 h-4 w-4" />Card</TabsTrigger>
           <TabsTrigger value="mpesa"><Smartphone className="mr-2 h-4 w-4" />M-Pesa</TabsTrigger>
+          <TabsTrigger value="btc"><Bitcoin className="mr-2 h-4 w-4" />BTC</TabsTrigger>
           <TabsTrigger value="aban"><Coins className="mr-2 h-4 w-4" />ABN</TabsTrigger>
         </TabsList>
 
@@ -344,6 +359,46 @@ export default function FundWallet() {
                 <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground flex items-center gap-2">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Waiting for M-Pesa confirmation… enter PIN on your phone.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="btc">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Bitcoin className="h-5 w-5 text-primary" /> Fund with Bitcoin</CardTitle>
+              <CardDescription>Send BTC to the generated address — your USD wallet auto-credits after 1 confirmation.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!btcInvoice && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Amount (USD)</Label>
+                    <Input type="number" min="1" step="0.01" placeholder="50.00" value={btcUsd} onChange={(e) => setBtcUsd(e.target.value)} />
+                  </div>
+                  <Button onClick={submitBtc} disabled={btcLoading} className="w-full">
+                    {btcLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating address…</> : <><Bitcoin className="mr-2 h-4 w-4" />Generate BTC address</>}
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">Powered by NOWPayments. Confirmation usually takes 10–30 minutes.</p>
+                </>
+              )}
+              {btcInvoice && (
+                <div className="space-y-3">
+                  <div className="rounded-lg border bg-gradient-to-br from-primary/10 to-card p-4 space-y-2">
+                    <div className="flex justify-between text-xs text-muted-foreground"><span>Send exactly</span><span>${btcInvoice.amount_usd}</span></div>
+                    <div className="font-mono text-2xl font-bold">{btcInvoice.pay_amount_btc} BTC</div>
+                    <div className="text-xs text-muted-foreground">to address:</div>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 break-all rounded border bg-background px-2 py-1.5 text-xs font-mono">{btcInvoice.pay_address}</code>
+                      <Button size="icon" variant="outline" onClick={() => copyText(btcInvoice.pay_address)}><Copy className="h-3 w-3" /></Button>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    Wallet credits automatically once your BTC payment confirms on the network. You can close this page — see status under Transactions.
+                  </div>
+                  <Button variant="outline" onClick={() => { setBtcInvoice(null); setBtcUsd(""); }} className="w-full">New deposit</Button>
                 </div>
               )}
             </CardContent>
