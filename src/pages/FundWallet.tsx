@@ -368,7 +368,7 @@ export default function FundWallet() {
         <TabsContent value="btc">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Bitcoin className="h-5 w-5 text-orange-500" /> Fund with Bitcoin</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Bitcoin className="h-5 w-5 text-primary" /> Fund with Bitcoin</CardTitle>
               <CardDescription>Send BTC to the generated address — your USD wallet auto-credits after 1 confirmation.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
