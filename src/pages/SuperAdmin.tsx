@@ -9,6 +9,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import TransactionExplorer from "@/components/admin/TransactionExplorer";
 import AuditLog from "@/components/admin/AuditLog";
 import SystemConfig from "@/components/admin/SystemConfig";
+import HoldsManager from "@/components/admin/HoldsManager";
 
 const sb = supabase as any;
 
