@@ -386,7 +386,7 @@ export default function FundWallet() {
               )}
               {btcInvoice && (
                 <div className="space-y-3">
-                  <div className="rounded-lg border bg-gradient-to-br from-orange-500/10 to-card p-4 space-y-2">
+                  <div className="rounded-lg border bg-gradient-to-br from-primary/10 to-card p-4 space-y-2">
                     <div className="flex justify-between text-xs text-muted-foreground"><span>Send exactly</span><span>${btcInvoice.amount_usd}</span></div>
                     <div className="font-mono text-2xl font-bold">{btcInvoice.pay_amount_btc} BTC</div>
                     <div className="text-xs text-muted-foreground">to address:</div>
