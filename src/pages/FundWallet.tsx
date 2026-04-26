@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
-import { CreditCard, Smartphone, Wallet, ShieldCheck, Lock, Coins, Loader2 } from "lucide-react";
+import { CreditCard, Smartphone, Wallet, ShieldCheck, Lock, Coins, Loader2, Bitcoin, Copy } from "lucide-react";
 import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
