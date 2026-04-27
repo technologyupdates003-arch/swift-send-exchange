@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
     if (payout.status !== "pending") return new Response(JSON.stringify({ error: "Payout not pending" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const token = await getAccessToken();
-    const securityCredential = encryptInitiator(INITIATOR_PASSWORD);
+    const securityCredential = await encryptInitiator(INITIATOR_PASSWORD);
     const callbackBase = `${SUPABASE_URL}/functions/v1/mpesa-b2c-callback`;
 
     const body = {
