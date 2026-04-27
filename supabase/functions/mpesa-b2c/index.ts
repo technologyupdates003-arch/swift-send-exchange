@@ -73,10 +73,17 @@ async function getAccessToken() {
   return data.access_token as string;
 }
 
-// RSA / PKCS1 encrypt initiator password with M-Pesa public key cert
+// RSA / PKCS1 encrypt initiator password with M-Pesa public key cert.
+// node:crypto's X509Certificate handles PEM certs; extract its publicKey.
 function encryptInitiator(password: string): string {
-  const pubKey = createPublicKey({ key: MPESA_CERT, format: "pem", type: "spki" });
-  const enc = publicEncrypt({ key: pubKey, padding: constants.RSA_PKCS1_PADDING }, Buffer.from(password, "utf8"));
+  // Use X509Certificate via node:crypto (deno-compatible polyfill)
+  // deno-lint-ignore no-explicit-any
+  const { X509Certificate } = require("node:crypto");
+  const cert = new X509Certificate(MPESA_CERT);
+  const enc = publicEncrypt(
+    { key: cert.publicKey, padding: constants.RSA_PKCS1_PADDING },
+    Buffer.from(password, "utf8"),
+  );
   return enc.toString("base64");
 }
 
