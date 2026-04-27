@@ -71,6 +71,15 @@ async function getAccessToken() {
   return data.access_token as string;
 }
 
+// Normalize Kenyan phone to 2547XXXXXXXX / 2541XXXXXXXX
+function normalizeKePhone(p: string): string {
+  let n = p.replace(/\D/g, "");
+  if (n.startsWith("0")) n = "254" + n.slice(1);
+  else if (n.startsWith("7") || n.startsWith("1")) n = "254" + n;
+  else if (n.startsWith("254")) { /* ok */ }
+  return n;
+}
+
 // ----- ASN.1 / DER helpers (no external deps) -----
 // Parse one TLV: returns { tag, len, headerLen, value (offset) } at position p.
 function readTLV(buf: Uint8Array, p: number) {
@@ -242,7 +251,7 @@ Deno.serve(async (req) => {
       CommandID: "BusinessPayment",
       Amount: Math.round(Number(payout.amount)),
       PartyA: SHORTCODE,
-      PartyB: payout.phone_number.replace(/\D/g, ""),
+      PartyB: normalizeKePhone(payout.phone_number),
       Remarks: "AbanRemit payout",
       QueueTimeOutURL: `${callbackBase}?type=timeout&id=${payout_id}`,
       ResultURL: `${callbackBase}?type=result&id=${payout_id}`,
