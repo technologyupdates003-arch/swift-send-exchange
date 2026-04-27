@@ -19,8 +19,9 @@ const INITIATOR_NAME = Deno.env.get("MPESA_INITIATOR_NAME")!;
 const INITIATOR_PASSWORD = Deno.env.get("MPESA_INITIATOR_PASSWORD")!;
 const BASE = "https://api.safaricom.co.ke";
 
-// Production cert (Safaricom). For sandbox, swap to sandbox cert.
-const MPESA_CERT = `-----BEGIN CERTIFICATE-----
+// Production cert - prefer secret MPESA_PRODUCTION_CERT (paste full PEM from Daraja portal).
+// Falls back to embedded cert if not set (may be expired - check Daraja for latest).
+const EMBEDDED_CERT = `-----BEGIN CERTIFICATE-----
 MIIGgDCCBWigAwIBAgIKMvrulAAAAARG5DANBgkqhkiG9w0BAQsFADBbMRMwEQYK
 CZImiZPyLGQBGRYDbmV0MRkwFwYKCZImiZPyLGQBGRYJc2FmYXJpY29tMSkwJwYD
 VQQDEyBTYWZhcmljb20gSW50ZXJuYWwgSXNzdWluZyBDQSAwMzAeFw0yNDA0MTYw
@@ -58,6 +59,7 @@ cCYtCoMlTqFn50LZuoVHb3dFyoyyQIqIjV0R6+B6FA9o8WD1eqnLAAHmpLyaFR1g
 hHSZ+hflhBwUEpv1gLRRZyJq1adH5l5MLaDKw31TGNtNw9bvCkLQqvrMfO7epmlP
 1lhf4/yRWxuuKW5+L1bz8NtZUAuQ97Cp
 -----END CERTIFICATE-----`;
+const MPESA_CERT = (Deno.env.get("MPESA_PRODUCTION_CERT") || EMBEDDED_CERT).trim();
 
 async function getAccessToken() {
   const creds = btoa(`${CONSUMER_KEY}:${CONSUMER_SECRET}`);
@@ -69,21 +71,154 @@ async function getAccessToken() {
   return data.access_token as string;
 }
 
-// RSA-OAEP / PKCS1 encrypt initiator password with M-Pesa public key cert
+// Normalize Kenyan phone to 2547XXXXXXXX / 2541XXXXXXXX
+function normalizeKePhone(p: string): string {
+  let n = p.replace(/\D/g, "");
+  if (n.startsWith("0")) n = "254" + n.slice(1);
+  else if (n.startsWith("7") || n.startsWith("1")) n = "254" + n;
+  else if (n.startsWith("254")) { /* ok */ }
+  return n;
+}
+
+// ----- ASN.1 / DER helpers (no external deps) -----
+// Parse one TLV: returns { tag, len, headerLen, value (offset) } at position p.
+function readTLV(buf: Uint8Array, p: number) {
+  const tag = buf[p];
+  let len = buf[p + 1];
+  let headerLen = 2;
+  if (len & 0x80) {
+    const n = len & 0x7f;
+    len = 0;
+    for (let i = 0; i < n; i++) len = (len << 8) | buf[p + 2 + i];
+    headerLen = 2 + n;
+  }
+  return { tag, len, headerLen, valueOffset: p + headerLen };
+}
+
+// Walk a Certificate to extract the raw SubjectPublicKeyInfo DER bytes.
+// Cert ::= SEQ { tbs SEQ { ...subjectPublicKeyInfo SEQ ... }, sigAlg, sigVal }
+function extractSpkiFromCertDer(certDer: Uint8Array): Uint8Array {
+  // Outer SEQUENCE
+  const outer = readTLV(certDer, 0);
+  // tbsCertificate SEQUENCE
+  const tbs = readTLV(certDer, outer.valueOffset);
+  let p = tbs.valueOffset;
+  const tbsEnd = tbs.valueOffset + tbs.len;
+  // Optional [0] version
+  if (certDer[p] === 0xa0) {
+    const v = readTLV(certDer, p);
+    p = v.valueOffset + v.len;
+  }
+  // serialNumber INTEGER
+  let t = readTLV(certDer, p); p = t.valueOffset + t.len;
+  // signature SEQUENCE
+  t = readTLV(certDer, p); p = t.valueOffset + t.len;
+  // issuer SEQUENCE
+  t = readTLV(certDer, p); p = t.valueOffset + t.len;
+  // validity SEQUENCE
+  t = readTLV(certDer, p); p = t.valueOffset + t.len;
+  // subject SEQUENCE
+  t = readTLV(certDer, p); p = t.valueOffset + t.len;
+  // subjectPublicKeyInfo SEQUENCE -> this is the SPKI we want (with header)
+  const spki = readTLV(certDer, p);
+  return certDer.slice(p, spki.valueOffset + spki.len);
+}
+
+function pemToDer(pem: string): Uint8Array {
+  const b64 = pem.replace(/-----BEGIN [^-]+-----|-----END [^-]+-----|\s/g, "");
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
+
+// Cache the imported public key
+let _cachedKey: CryptoKey | null = null;
+async function getPubKey(): Promise<CryptoKey> {
+  if (_cachedKey) return _cachedKey;
+  const certDer = pemToDer(MPESA_CERT);
+  const spkiDer = extractSpkiFromCertDer(certDer);
+  // Web Crypto doesn't natively support RSA-PKCS1-v1_5 encryption (only OAEP).
+  // Daraja requires PKCS1 v1.5 padding. We must use node:crypto for the encrypt op.
+  _cachedKey = await crypto.subtle.importKey(
+    "spki", spkiDer.buffer,
+    { name: "RSA-OAEP", hash: "SHA-1" }, // dummy algo just to import; we won't use OAEP
+    true, ["encrypt"],
+  );
+  return _cachedKey;
+}
+
+// Manual RSAES-PKCS1-v1_5 encryption using Web Crypto for raw modular exponentiation isn't possible.
+// Instead: export the imported key as JWK -> get n,e -> do RSA encrypt manually with bigint.
 async function encryptInitiator(password: string): Promise<string> {
-  // Extract public key from PEM cert
-  const pem = MPESA_CERT.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s/g, "");
-  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-  // Use Web Crypto: import as SPKI not directly supported for cert; need to extract subjectPublicKeyInfo.
-  // Easiest path: use forge-like. Instead use deno-x509.
-  // Fallback: import via crypto.subtle with X.509 parsing via a small inline ASN.1 walk.
-  // Practical workaround: call helper
-  const { X509Certificate } = await import("node:crypto");
-  const cert = new X509Certificate(MPESA_CERT);
-  const pubKey = cert.publicKey;
-  const { publicEncrypt, constants } = await import("node:crypto");
-  const enc = publicEncrypt({ key: pubKey, padding: constants.RSA_PKCS1_PADDING }, Buffer.from(password));
-  return enc.toString("base64");
+  const certDer = pemToDer(MPESA_CERT);
+  const spkiDer = extractSpkiFromCertDer(certDer);
+  // Import as RSA-OAEP just to extract the JWK (n,e)
+  const k = await crypto.subtle.importKey(
+    "spki", spkiDer.buffer,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true, ["encrypt"],
+  );
+  const jwk = await crypto.subtle.exportKey("jwk", k);
+  const n = b64uToBigInt(jwk.n!);
+  const e = b64uToBigInt(jwk.e!);
+  const kLen = byteLengthOfBigInt(n);
+
+  // PKCS#1 v1.5 EME padding: 0x00 || 0x02 || PS || 0x00 || M
+  const m = new TextEncoder().encode(password);
+  if (m.length > kLen - 11) throw new Error("Password too long for RSA key");
+  const psLen = kLen - m.length - 3;
+  const ps = new Uint8Array(psLen);
+  crypto.getRandomValues(ps);
+  for (let i = 0; i < ps.length; i++) {
+    while (ps[i] === 0) ps[i] = (Math.floor(Math.random() * 255) + 1) & 0xff;
+  }
+  const em = new Uint8Array(kLen);
+  em[0] = 0x00; em[1] = 0x02;
+  em.set(ps, 2);
+  em[2 + psLen] = 0x00;
+  em.set(m, 3 + psLen);
+  // c = m^e mod n
+  const mInt = bytesToBigInt(em);
+  const c = modPow(mInt, e, n);
+  const cBytes = bigIntToBytes(c, kLen);
+  let bin = "";
+  for (let i = 0; i < cBytes.length; i++) bin += String.fromCharCode(cBytes[i]);
+  return btoa(bin);
+}
+
+function b64uToBigInt(b64u: string): bigint {
+  const b64 = b64u.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(b64u.length / 4) * 4, "=");
+  const bin = atob(b64);
+  let h = "0x";
+  for (let i = 0; i < bin.length; i++) h += bin.charCodeAt(i).toString(16).padStart(2, "0");
+  return BigInt(h);
+}
+function bytesToBigInt(bytes: Uint8Array): bigint {
+  let h = "0x";
+  for (let i = 0; i < bytes.length; i++) h += bytes[i].toString(16).padStart(2, "0");
+  return BigInt(h);
+}
+function bigIntToBytes(n: bigint, length: number): Uint8Array {
+  let h = n.toString(16);
+  if (h.length % 2) h = "0" + h;
+  const out = new Uint8Array(length);
+  const start = length - h.length / 2;
+  for (let i = 0; i < h.length / 2; i++) out[start + i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+function byteLengthOfBigInt(n: bigint): number {
+  return Math.ceil(n.toString(16).length / 2);
+}
+function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
+  let r = 1n;
+  base = base % mod;
+  while (exp > 0n) {
+    if (exp & 1n) r = (r * base) % mod;
+    exp >>= 1n;
+    base = (base * base) % mod;
+  }
+  return r;
 }
 
 Deno.serve(async (req) => {
@@ -108,17 +243,19 @@ Deno.serve(async (req) => {
     const securityCredential = await encryptInitiator(INITIATOR_PASSWORD);
     const callbackBase = `${SUPABASE_URL}/functions/v1/mpesa-b2c-callback`;
 
+    const originatorId = `ABN-${payout_id.replace(/-/g, "").slice(0, 20)}`;
     const body = {
+      OriginatorConversationID: originatorId,
       InitiatorName: INITIATOR_NAME,
       SecurityCredential: securityCredential,
       CommandID: "BusinessPayment",
       Amount: Math.round(Number(payout.amount)),
       PartyA: SHORTCODE,
-      PartyB: payout.phone_number.replace(/\D/g, ""),
+      PartyB: normalizeKePhone(payout.phone_number),
       Remarks: "AbanRemit payout",
       QueueTimeOutURL: `${callbackBase}?type=timeout&id=${payout_id}`,
       ResultURL: `${callbackBase}?type=result&id=${payout_id}`,
-      Occasion: payout_id.slice(0, 20),
+      Occasion: "Withdrawal",
     };
 
     const res = await fetch(`${BASE}/mpesa/b2c/v3/paymentrequest`, {
