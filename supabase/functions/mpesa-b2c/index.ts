@@ -234,7 +234,9 @@ Deno.serve(async (req) => {
     const securityCredential = await encryptInitiator(INITIATOR_PASSWORD);
     const callbackBase = `${SUPABASE_URL}/functions/v1/mpesa-b2c-callback`;
 
+    const originatorId = `ABN-${payout_id.replace(/-/g, "").slice(0, 20)}`;
     const body = {
+      OriginatorConversationID: originatorId,
       InitiatorName: INITIATOR_NAME,
       SecurityCredential: securityCredential,
       CommandID: "BusinessPayment",
@@ -244,7 +246,7 @@ Deno.serve(async (req) => {
       Remarks: "AbanRemit payout",
       QueueTimeOutURL: `${callbackBase}?type=timeout&id=${payout_id}`,
       ResultURL: `${callbackBase}?type=result&id=${payout_id}`,
-      Occasion: payout_id.slice(0, 20),
+      Occasion: "Withdrawal",
     };
 
     const res = await fetch(`${BASE}/mpesa/b2c/v3/paymentrequest`, {
