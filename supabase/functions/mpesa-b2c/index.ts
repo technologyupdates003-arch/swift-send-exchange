@@ -1,7 +1,8 @@
 // Safaricom Daraja B2C: send KES to a phone. Triggered by withdraw_to_mpesa or send_to_mpesa.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
-import { KEYUTIL, KJUR, X509, hextob64 } from "npm:jsrsasign@11.1.0";
+import { createPublicKey, publicEncrypt, constants } from "node:crypto";
+import { Buffer } from "node:buffer";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,12 +73,11 @@ async function getAccessToken() {
   return data.access_token as string;
 }
 
-// RSA / PKCS1 encrypt initiator password with M-Pesa public key cert (using node-forge)
+// RSA / PKCS1 encrypt initiator password with M-Pesa public key cert
 function encryptInitiator(password: string): string {
-  const cert = forge.pki.certificateFromPem(MPESA_CERT);
-  const publicKey = cert.publicKey as forge.pki.rsa.PublicKey;
-  const encrypted = publicKey.encrypt(password, "RSAES-PKCS1-V1_5");
-  return forge.util.encode64(encrypted);
+  const pubKey = createPublicKey({ key: MPESA_CERT, format: "pem", type: "spki" });
+  const enc = publicEncrypt({ key: pubKey, padding: constants.RSA_PKCS1_PADDING }, Buffer.from(password, "utf8"));
+  return enc.toString("base64");
 }
 
 Deno.serve(async (req) => {
