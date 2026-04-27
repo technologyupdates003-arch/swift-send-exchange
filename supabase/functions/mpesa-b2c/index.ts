@@ -20,8 +20,9 @@ const INITIATOR_NAME = Deno.env.get("MPESA_INITIATOR_NAME")!;
 const INITIATOR_PASSWORD = Deno.env.get("MPESA_INITIATOR_PASSWORD")!;
 const BASE = "https://api.safaricom.co.ke";
 
-// Production cert (Safaricom). For sandbox, swap to sandbox cert.
-const MPESA_CERT = `-----BEGIN CERTIFICATE-----
+// Production cert - prefer secret MPESA_PRODUCTION_CERT (paste full PEM from Daraja portal).
+// Falls back to embedded cert if not set (may be expired - check Daraja for latest).
+const EMBEDDED_CERT = `-----BEGIN CERTIFICATE-----
 MIIGgDCCBWigAwIBAgIKMvrulAAAAARG5DANBgkqhkiG9w0BAQsFADBbMRMwEQYK
 CZImiZPyLGQBGRYDbmV0MRkwFwYKCZImiZPyLGQBGRYJc2FmYXJpY29tMSkwJwYD
 VQQDEyBTYWZhcmljb20gSW50ZXJuYWwgSXNzdWluZyBDQSAwMzAeFw0yNDA0MTYw
@@ -59,6 +60,7 @@ cCYtCoMlTqFn50LZuoVHb3dFyoyyQIqIjV0R6+B6FA9o8WD1eqnLAAHmpLyaFR1g
 hHSZ+hflhBwUEpv1gLRRZyJq1adH5l5MLaDKw31TGNtNw9bvCkLQqvrMfO7epmlP
 1lhf4/yRWxuuKW5+L1bz8NtZUAuQ97Cp
 -----END CERTIFICATE-----`;
+const MPESA_CERT = (Deno.env.get("MPESA_PRODUCTION_CERT") || EMBEDDED_CERT).trim();
 
 async function getAccessToken() {
   const creds = btoa(`${CONSUMER_KEY}:${CONSUMER_SECRET}`);
