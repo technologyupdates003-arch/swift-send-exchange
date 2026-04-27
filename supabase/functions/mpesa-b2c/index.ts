@@ -70,21 +70,12 @@ async function getAccessToken() {
   return data.access_token as string;
 }
 
-// RSA-OAEP / PKCS1 encrypt initiator password with M-Pesa public key cert
-async function encryptInitiator(password: string): Promise<string> {
-  // Extract public key from PEM cert
-  const pem = MPESA_CERT.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s/g, "");
-  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
-  // Use Web Crypto: import as SPKI not directly supported for cert; need to extract subjectPublicKeyInfo.
-  // Easiest path: use forge-like. Instead use deno-x509.
-  // Fallback: import via crypto.subtle with X.509 parsing via a small inline ASN.1 walk.
-  // Practical workaround: call helper
-  const { X509Certificate } = await import("node:crypto");
-  const cert = new X509Certificate(MPESA_CERT);
-  const pubKey = cert.publicKey;
-  const { publicEncrypt, constants } = await import("node:crypto");
-  const enc = publicEncrypt({ key: pubKey, padding: constants.RSA_PKCS1_PADDING }, Buffer.from(password));
-  return enc.toString("base64");
+// RSA / PKCS1 encrypt initiator password with M-Pesa public key cert (using node-forge)
+function encryptInitiator(password: string): string {
+  const cert = forge.pki.certificateFromPem(MPESA_CERT);
+  const publicKey = cert.publicKey as forge.pki.rsa.PublicKey;
+  const encrypted = publicKey.encrypt(password, "RSAES-PKCS1-V1_5");
+  return forge.util.encode64(encrypted);
 }
 
 Deno.serve(async (req) => {
