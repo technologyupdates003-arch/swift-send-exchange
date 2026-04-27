@@ -1,7 +1,7 @@
 // Safaricom Daraja B2C: send KES to a phone. Triggered by withdraw_to_mpesa or send_to_mpesa.
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { z } from "npm:zod@3.23.8";
-import forge from "npm:node-forge@1.3.1";
+import { KEYUTIL, KJUR, X509, hextob64 } from "npm:jsrsasign@11.1.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
