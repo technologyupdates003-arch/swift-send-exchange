@@ -46,6 +46,9 @@ export default function SendMoney() {
   const [description, setDescription] = useState("");
   const [lookupStatus, setLookupStatus] = useState<"idle" | "checking" | "found" | "notfound" | "self">("idle");
   const [lookup, setLookup] = useState<LookupResult | null>(null);
+  const [fromCurrency, setFromCurrency] = useState<string>("");
+  const [rate, setRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
   // M-Pesa send
   const [phone, setPhone] = useState("");
