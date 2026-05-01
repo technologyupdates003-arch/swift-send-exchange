@@ -834,6 +834,7 @@ export type Database = {
         }
         Returns: Json
       }
+      delete_wallet: { Args: { _wallet_id: string }; Returns: Json }
       exchange_currency:
         | {
             Args: {
