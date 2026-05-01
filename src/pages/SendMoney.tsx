@@ -248,30 +248,72 @@ export default function SendMoney() {
                   )}
                 </div>
 
-                {lookup && !matchingSenderWallet && (
+                {lookup && wallets.length === 0 && (
                   <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
-                    You need a {lookup.currency} wallet to send to this recipient. Create one from the Wallets page.
+                    You don't have any wallets yet. Create one from the Wallets page.
                   </div>
                 )}
 
-                {matchingSenderWallet && (
-                  <div className="rounded-md border bg-card p-3 text-xs">
-                    <p className="text-muted-foreground">Sending from your {matchingSenderWallet.currency} wallet</p>
-                    <p className="font-semibold">{formatMoney(matchingSenderWallet.balance, matchingSenderWallet.currency)} available</p>
+                {lookup && wallets.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="from">Send from</Label>
+                    <select
+                      id="from"
+                      value={fromCurrency}
+                      onChange={(e) => setFromCurrency(e.target.value)}
+                      className="w-full rounded-md border bg-background p-2 text-sm"
+                    >
+                      {wallets.map((w) => (
+                        <option key={w.id} value={w.currency}>
+                          {w.currency} — {formatMoney(w.balance, w.currency)} available
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="amt">Amount {lookup ? `(${lookup.currency})` : ""}</Label>
+                  <Label htmlFor="amt">Amount {senderWallet ? `(${senderWallet.currency})` : ""}</Label>
                   <Input id="amt" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
                 </div>
+
+                {lookup && senderWallet && !sameCurrency && (
+                  <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-1">
+                    {rateLoading ? (
+                      <p className="text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading rate…
+                      </p>
+                    ) : rate ? (
+                      <>
+                        <p className="text-muted-foreground">
+                          Rate: 1 {senderWallet.currency} = {rate} {lookup.currency}
+                        </p>
+                        <p className="font-semibold">
+                          Recipient gets: {credited !== null ? formatMoney(credited, lookup.currency) : "—"}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-destructive">
+                        No exchange rate set for {senderWallet.currency} → {lookup.currency}. Ask admin to add one.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="desc">Note (optional)</Label>
                   <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} rows={2} />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={lookupStatus !== "found" || !matchingSenderWallet}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={
+                    lookupStatus !== "found" ||
+                    !senderWallet ||
+                    (!sameCurrency && !rate)
+                  }
+                >
                   <Send className="mr-2 h-4 w-4" /> Send transfer
                 </Button>
               </form>
