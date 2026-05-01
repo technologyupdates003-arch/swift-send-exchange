@@ -918,15 +918,26 @@ export type Database = {
             }
             Returns: Json
           }
-      transfer_funds_by_wallet: {
-        Args: {
-          _amount: number
-          _description: string
-          _pin: string
-          _to_wallet_number: string
-        }
-        Returns: Json
-      }
+      transfer_funds_by_wallet:
+        | {
+            Args: {
+              _amount: number
+              _description: string
+              _pin: string
+              _to_wallet_number: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _amount: number
+              _description: string
+              _from_currency?: Database["public"]["Enums"]["wallet_currency"]
+              _pin: string
+              _to_wallet_number: string
+            }
+            Returns: Json
+          }
       verify_transaction_pin: { Args: { _pin: string }; Returns: boolean }
       withdraw_to_mpesa: {
         Args: { _amount: number; _phone: string; _pin: string }
