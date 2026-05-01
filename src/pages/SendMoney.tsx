@@ -79,9 +79,41 @@ export default function SendMoney() {
     return () => clearTimeout(t);
   }, [toWallet, user?.id]);
 
-  const matchingSenderWallet = lookup
-    ? wallets.find((w) => w.currency === lookup.currency)
-    : null;
+  // Default sender wallet to one matching recipient currency, else first wallet with balance
+  useEffect(() => {
+    if (!lookup || wallets.length === 0) return;
+    if (fromCurrency && wallets.some((w) => w.currency === fromCurrency)) return;
+    const match = wallets.find((w) => w.currency === lookup.currency);
+    if (match) setFromCurrency(match.currency);
+    else {
+      const withBal = wallets.find((w) => Number(w.balance) > 0) ?? wallets[0];
+      setFromCurrency(withBal.currency);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookup, wallets]);
+
+  const senderWallet = fromCurrency ? wallets.find((w) => w.currency === fromCurrency) : null;
+  const sameCurrency = !!(lookup && senderWallet && lookup.currency === senderWallet.currency);
+
+  // Fetch exchange rate when cross-currency
+  useEffect(() => {
+    if (!lookup || !senderWallet || sameCurrency) { setRate(null); return; }
+    setRateLoading(true);
+    supabase.from("exchange_rates")
+      .select("rate")
+      .eq("from_currency", senderWallet.currency)
+      .eq("to_currency", lookup.currency)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        setRate(data?.rate ? Number(data.rate) : null);
+        setRateLoading(false);
+      });
+  }, [lookup, senderWallet?.currency, sameCurrency]);
+
+  const amtNum = parseFloat(amount) || 0;
+  const credited = sameCurrency
+    ? amtNum
+    : (rate ? Number((amtNum * rate).toFixed(lookup?.currency === "ABN" ? 6 : 2)) : null);
 
   const requirePin = (action: (pin: string) => Promise<void>) => {
     if (!hasPin) {
@@ -114,11 +146,12 @@ export default function SendMoney() {
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (lookupStatus !== "found" || !lookup) { toast.error("Recipient wallet not found"); return; }
-    if (!matchingSenderWallet) {
-      toast.error(`You need a ${lookup.currency} wallet to send to this recipient`);
+    if (!senderWallet) { toast.error("Pick a wallet to send from"); return; }
+    if (!sameCurrency && !rate) {
+      toast.error(`No exchange rate set for ${senderWallet.currency} → ${lookup.currency}`);
       return;
     }
-    if (parsed.data.amount > Number(matchingSenderWallet.balance)) {
+    if (parsed.data.amount > Number(senderWallet.balance)) {
       toast.error("Insufficient balance"); return;
     }
 
@@ -128,6 +161,7 @@ export default function SendMoney() {
         _amount: parsed.data.amount,
         _description: parsed.data.description ?? null,
         _pin: pin,
+        _from_currency: senderWallet.currency,
       });
       if (error) { toast.error(error.message); return; }
       toast.success("Transfer complete");
