@@ -46,6 +46,9 @@ export default function SendMoney() {
   const [description, setDescription] = useState("");
   const [lookupStatus, setLookupStatus] = useState<"idle" | "checking" | "found" | "notfound" | "self">("idle");
   const [lookup, setLookup] = useState<LookupResult | null>(null);
+  const [fromCurrency, setFromCurrency] = useState<string>("");
+  const [rate, setRate] = useState<number | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
   // M-Pesa send
   const [phone, setPhone] = useState("");
@@ -76,9 +79,41 @@ export default function SendMoney() {
     return () => clearTimeout(t);
   }, [toWallet, user?.id]);
 
-  const matchingSenderWallet = lookup
-    ? wallets.find((w) => w.currency === lookup.currency)
-    : null;
+  // Default sender wallet to one matching recipient currency, else first wallet with balance
+  useEffect(() => {
+    if (!lookup || wallets.length === 0) return;
+    if (fromCurrency && wallets.some((w) => w.currency === fromCurrency)) return;
+    const match = wallets.find((w) => w.currency === lookup.currency);
+    if (match) setFromCurrency(match.currency);
+    else {
+      const withBal = wallets.find((w) => Number(w.balance) > 0) ?? wallets[0];
+      setFromCurrency(withBal.currency);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookup, wallets]);
+
+  const senderWallet = fromCurrency ? wallets.find((w) => w.currency === fromCurrency) : null;
+  const sameCurrency = !!(lookup && senderWallet && lookup.currency === senderWallet.currency);
+
+  // Fetch exchange rate when cross-currency
+  useEffect(() => {
+    if (!lookup || !senderWallet || sameCurrency) { setRate(null); return; }
+    setRateLoading(true);
+    supabase.from("exchange_rates")
+      .select("rate")
+      .eq("from_currency", senderWallet.currency)
+      .eq("to_currency", lookup.currency)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        setRate(data?.rate ? Number(data.rate) : null);
+        setRateLoading(false);
+      });
+  }, [lookup, senderWallet?.currency, sameCurrency]);
+
+  const amtNum = parseFloat(amount) || 0;
+  const credited = sameCurrency
+    ? amtNum
+    : (rate ? Number((amtNum * rate).toFixed(lookup?.currency === "ABN" ? 6 : 2)) : null);
 
   const requirePin = (action: (pin: string) => Promise<void>) => {
     if (!hasPin) {
@@ -111,11 +146,12 @@ export default function SendMoney() {
     });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (lookupStatus !== "found" || !lookup) { toast.error("Recipient wallet not found"); return; }
-    if (!matchingSenderWallet) {
-      toast.error(`You need a ${lookup.currency} wallet to send to this recipient`);
+    if (!senderWallet) { toast.error("Pick a wallet to send from"); return; }
+    if (!sameCurrency && !rate) {
+      toast.error(`No exchange rate set for ${senderWallet.currency} → ${lookup.currency}`);
       return;
     }
-    if (parsed.data.amount > Number(matchingSenderWallet.balance)) {
+    if (parsed.data.amount > Number(senderWallet.balance)) {
       toast.error("Insufficient balance"); return;
     }
 
@@ -125,6 +161,7 @@ export default function SendMoney() {
         _amount: parsed.data.amount,
         _description: parsed.data.description ?? null,
         _pin: pin,
+        _from_currency: senderWallet.currency,
       });
       if (error) { toast.error(error.message); return; }
       toast.success("Transfer complete");
@@ -211,30 +248,72 @@ export default function SendMoney() {
                   )}
                 </div>
 
-                {lookup && !matchingSenderWallet && (
+                {lookup && wallets.length === 0 && (
                   <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
-                    You need a {lookup.currency} wallet to send to this recipient. Create one from the Wallets page.
+                    You don't have any wallets yet. Create one from the Wallets page.
                   </div>
                 )}
 
-                {matchingSenderWallet && (
-                  <div className="rounded-md border bg-card p-3 text-xs">
-                    <p className="text-muted-foreground">Sending from your {matchingSenderWallet.currency} wallet</p>
-                    <p className="font-semibold">{formatMoney(matchingSenderWallet.balance, matchingSenderWallet.currency)} available</p>
+                {lookup && wallets.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="from">Send from</Label>
+                    <select
+                      id="from"
+                      value={fromCurrency}
+                      onChange={(e) => setFromCurrency(e.target.value)}
+                      className="w-full rounded-md border bg-background p-2 text-sm"
+                    >
+                      {wallets.map((w) => (
+                        <option key={w.id} value={w.currency}>
+                          {w.currency} — {formatMoney(w.balance, w.currency)} available
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="amt">Amount {lookup ? `(${lookup.currency})` : ""}</Label>
+                  <Label htmlFor="amt">Amount {senderWallet ? `(${senderWallet.currency})` : ""}</Label>
                   <Input id="amt" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />
                 </div>
+
+                {lookup && senderWallet && !sameCurrency && (
+                  <div className="rounded-md border bg-muted/40 p-3 text-xs space-y-1">
+                    {rateLoading ? (
+                      <p className="text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading rate…
+                      </p>
+                    ) : rate ? (
+                      <>
+                        <p className="text-muted-foreground">
+                          Rate: 1 {senderWallet.currency} = {rate} {lookup.currency}
+                        </p>
+                        <p className="font-semibold">
+                          Recipient gets: {credited !== null ? formatMoney(credited, lookup.currency) : "—"}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-destructive">
+                        No exchange rate set for {senderWallet.currency} → {lookup.currency}. Ask admin to add one.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="desc">Note (optional)</Label>
                   <Textarea id="desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} rows={2} />
                 </div>
 
-                <Button type="submit" className="w-full" disabled={lookupStatus !== "found" || !matchingSenderWallet}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={
+                    lookupStatus !== "found" ||
+                    !senderWallet ||
+                    (!sameCurrency && !rate)
+                  }
+                >
                   <Send className="mr-2 h-4 w-4" /> Send transfer
                 </Button>
               </form>
