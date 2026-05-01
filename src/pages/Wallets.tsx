@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
-import { Plus, Wallet as WalletIcon, Copy, Check } from "lucide-react";
+import { Plus, Wallet as WalletIcon, Copy, Check, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 interface Wallet { id: string; currency: string; balance: number; wallet_number: string; }
@@ -66,6 +67,13 @@ export default function Wallets() {
     setTimeout(() => setCopied(null), 1500);
   };
 
+  const deleteWallet = async (id: string, currency: string) => {
+    const { error } = await supabase.rpc("delete_wallet", { _wallet_id: id });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${currency} wallet deleted`);
+    await load();
+  };
+
   return (
     <div className="space-y-6 pb-20 md:pb-0">
       <div>
@@ -115,6 +123,27 @@ export default function Wallets() {
                     ? <Check className="h-4 w-4 text-primary shrink-0" />
                     : <Copy className="h-4 w-4 text-muted-foreground shrink-0" />}
                 </button>
+              )}
+              {wallets.length > 1 && Number(w.balance) === 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="mt-2 w-full text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete wallet
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete {w.currency} wallet?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This permanently removes your {w.currency} wallet ({w.wallet_number}). You can recreate it later.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteWallet(w.id, w.currency)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </CardContent>
           </Card>
