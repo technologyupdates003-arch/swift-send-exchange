@@ -14,6 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { Send, Smartphone, Hash, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { PinDialog } from "@/components/PinDialog";
 import { usePinGuard } from "@/hooks/usePinGuard";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
@@ -50,12 +51,13 @@ export default function SendMoney() {
   const [phone, setPhone] = useState("");
   const [mAmt, setMAmt] = useState("");
 
-  useEffect(() => {
-    if (!user) return;
+  const loadWallets = () => {
     supabase.from("wallets").select("*").order("currency").then(({ data }: any) => {
       if (data) setWallets(data);
     });
-  }, [user]);
+  };
+  useEffect(() => { if (user) loadWallets(); }, [user]);
+  useWalletRealtime(user?.id, loadWallets);
 
   // Lookup wallet number (debounced)
   useEffect(() => {
@@ -66,8 +68,8 @@ export default function SendMoney() {
     setLookupStatus("checking");
     const t = setTimeout(async () => {
       const { data, error } = await supabase.rpc("lookup_wallet", { _wallet_number: raw });
-      if (error || !data) { setLookupStatus("notfound"); setLookup(null); return; }
-      if (data.user_id === user?.id) { setLookupStatus("self"); setLookup(null); return; }
+      if (error || !data || !data.found) { setLookupStatus("notfound"); setLookup(null); return; }
+      if (data.is_self || data.user_id === user?.id) { setLookupStatus("self"); setLookup(null); return; }
       setLookup(data as LookupResult);
       setLookupStatus("found");
     }, 350);
@@ -140,7 +142,7 @@ export default function SendMoney() {
       });
       if (error) { toast.error(error.message); return; }
       if (data?.payout_id) {
-        await supabase.functions.invoke("intasend-b2c", { body: { payout_id: data.payout_id } });
+        await supabase.functions.invoke("mpesa-b2c", { body: { payout_id: data.payout_id } });
       }
       toast.success("M-Pesa send queued");
       navigate("/transactions");
