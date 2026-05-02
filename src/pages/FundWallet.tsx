@@ -127,44 +127,9 @@ export default function FundWallet() {
     setTimeout(tick, 4000);
   };
 
-  const submitStep = async () => {
-    if (!chargeRef || !stepInput) return;
-    setCardLoading(true);
-    const body: any = { reference: chargeRef };
-    if (cardStep === "pin") body.pin = stepInput;
-    if (cardStep === "otp") body.otp = stepInput;
-    if (cardStep === "phone") body.phone = stepInput;
-    if (cardStep === "birthday") body.birthday = stepInput;
-    const { data, error } = await supabase.functions.invoke("paystack-charge-card", { body });
-    setCardLoading(false);
-    setStepInput("");
-    handleCardResponse(data, error);
-  };
-
-  const handleCardResponse = (data: any, error: any) => {
-    if (error || !data) { toast.error(error?.message || "Charge failed"); return; }
-    setChargeRef(data.reference);
-    setStepHint(data.display_text || "");
-    if (data.status === "success") {
-      toast.success("Payment successful — wallet credited");
-      resetCard(); refreshWallets();
-      navigate("/transactions");
-    } else if (data.next_action === "3ds" && data.redirect) {
-      toast.info("Opening 3-D Secure verification…");
-      window.open(data.redirect, "_blank");
-      setCardStep("3ds");
-    } else if (data.next_action) {
-      setCardStep(data.next_action as CardStep);
-    } else if (!data.success) {
-      const reason = data.gateway_response || data.message || "Card declined";
-      toast.error(reason, { duration: 6000 });
-      setStepHint(reason);
-    }
-  };
-
   const resetCard = () => {
-    setCardNumber(""); setCardExpiry(""); setCardCvv(""); setCardAmount("");
-    setCardStep("form"); setChargeRef(null); setStepInput(""); setStepHint("");
+    setCardAmount("");
+    setChargeRef(null);
   };
   const refreshWallets = () => supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
 
