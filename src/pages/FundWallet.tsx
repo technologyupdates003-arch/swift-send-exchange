@@ -269,95 +269,40 @@ export default function FundWallet() {
           <Card>
             <CardHeader>
               <CardTitle>Pay with card</CardTitle>
-              <CardDescription>Visa, Mastercard, Verve. Processed securely by Paystack.</CardDescription>
+              <CardDescription>Visa, Mastercard, Verve, bank transfer & more — processed securely on Paystack's PCI-DSS hosted checkout.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {cardStep === "form" && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Currency</Label>
-                      <Select value={cardCurrency} onValueChange={(v: any) => setCardCurrency(v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="NGN">NGN — Naira</SelectItem>
-                          <SelectItem value="USD">USD — Dollar</SelectItem>
-                          <SelectItem value="KES">KES — Shilling</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Amount</Label>
-                      <Input type="number" min="0" step="0.01" value={cardAmount} onChange={(e) => setCardAmount(e.target.value)} />
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">Card number</span>
-                      <div className="flex items-center gap-1">
-                        <span className="inline-flex items-center justify-center rounded border bg-background px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-[#1a1f71]">VISA</span>
-                        <span className="inline-flex items-center justify-center rounded border bg-background px-1.5 py-0.5 text-[10px] font-bold">MC</span>
-                        <span className="inline-flex items-center justify-center rounded border bg-background px-1.5 py-0.5 text-[10px] font-bold">VERVE</span>
-                      </div>
-                    </div>
-                    <Input inputMode="numeric" placeholder="1234 5678 9012 3456" value={cardNumber} onChange={(e) => setCardNumber(formatCardNumber(e.target.value))} className="font-mono text-lg tracking-wider" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Expiry</Label>
-                        <Input inputMode="numeric" placeholder="MM/YY" maxLength={5} value={cardExpiry} onChange={(e) => {
-                          let v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                          if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
-                          setCardExpiry(v);
-                        }} className="font-mono" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">CVV</Label>
-                        <Input inputMode="numeric" type="password" maxLength={4} placeholder="123" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ""))} className="font-mono" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <Lock className="h-3 w-3" /> Secured by Paystack · 3-D Secure · PCI-DSS
-                    <ShieldCheck className="ml-auto h-3 w-3 text-primary" />
-                  </div>
-
-                  <Button onClick={submitCard} disabled={cardLoading} className="w-full">
-                    {cardLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</> : `Pay ${cardAmount ? formatMoney(parseFloat(cardAmount), cardCurrency) : ""}`}
-                  </Button>
-                </>
-              )}
-
-              {cardStep !== "form" && (
-                <div className="space-y-4">
-                  <div className="rounded-lg border bg-muted/40 p-3 space-y-1 text-sm">
-                    <p className="font-medium capitalize">Additional verification: {cardStep}</p>
-                    {stepHint && <p className="text-xs text-muted-foreground">{stepHint}</p>}
-                    {cardStep === "3ds" && <p className="text-xs text-muted-foreground">Complete 3-D Secure in the new tab, then click "I've completed 3DS" below.</p>}
-                  </div>
-                  {cardStep !== "3ds" && (
-                    <>
-                      <Input
-                        autoFocus
-                        inputMode={cardStep === "phone" ? "tel" : "numeric"}
-                        type={cardStep === "pin" ? "password" : "text"}
-                        placeholder={cardStep === "pin" ? "Card PIN" : cardStep === "otp" ? "OTP from your bank" : cardStep === "phone" ? "Phone number" : "DD-MM-YYYY"}
-                        value={stepInput}
-                        onChange={(e) => setStepInput(e.target.value)}
-                      />
-                      <Button onClick={submitStep} disabled={cardLoading || !stepInput} className="w-full">
-                        {cardLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit"}
-                      </Button>
-                    </>
-                  )}
-                  {cardStep === "3ds" && (
-                    <Button onClick={() => handleCardResponse({ status: "pending", reference: chargeRef }, null)} className="w-full">
-                      I've completed 3DS — refresh status
-                    </Button>
-                  )}
-                  <Button variant="ghost" onClick={resetCard} className="w-full">Cancel</Button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select value={cardCurrency} onValueChange={(v: any) => setCardCurrency(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NGN">NGN — Naira</SelectItem>
+                      <SelectItem value="USD">USD — Dollar</SelectItem>
+                      <SelectItem value="KES">KES — Shilling</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Amount</Label>
+                  <Input type="number" min="0" step="0.01" value={cardAmount} onChange={(e) => setCardAmount(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-2">
+                <div className="flex items-center gap-2"><Lock className="h-3 w-3" /> You'll enter card details on Paystack's secure page.</div>
+                <div className="flex items-center gap-2"><ShieldCheck className="h-3 w-3 text-primary" /> Wallet is credited automatically once payment confirms.</div>
+              </div>
+
+              <Button onClick={submitCard} disabled={cardLoading || !cardAmount} className="w-full">
+                {cardLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Opening Paystack…</> : `Pay ${cardAmount ? formatMoney(parseFloat(cardAmount), cardCurrency) : ""}`}
+              </Button>
+
+              {chargeRef && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Awaiting payment confirmation… Ref: <span className="font-mono">{chargeRef}</span>
+                </p>
               )}
             </CardContent>
           </Card>
