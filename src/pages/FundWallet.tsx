@@ -64,7 +64,7 @@ export default function FundWallet() {
     supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
   });
 
-  const formatCardNumber = (v: string) => v.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
+  
 
   const submitCard = async () => {
     const amt = parseFloat(cardAmount);
