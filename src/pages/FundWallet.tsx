@@ -83,22 +83,48 @@ export default function FundWallet() {
   const formatCardNumber = (v: string) => v.replace(/\D/g, "").slice(0, 19).replace(/(\d{4})(?=\d)/g, "$1 ");
 
   const submitCard = async () => {
-    const cleanNum = cardNumber.replace(/\s/g, "");
-    const [mm, yyRaw] = cardExpiry.split("/");
-    const parsed = cardSchema.safeParse({
-      amount: parseFloat(cardAmount), currency: cardCurrency,
-      number: cleanNum, expiry: cardExpiry, cvv: cardCvv,
-    });
-    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    const amt = parseFloat(cardAmount);
+    if (!amt || amt <= 0) { toast.error("Enter a valid amount"); return; }
     setCardLoading(true);
-    const { data, error } = await supabase.functions.invoke("paystack-charge-card", {
+    const { data, error } = await supabase.functions.invoke("paystack-init-transaction", {
       body: {
-        amount: parsed.data.amount, currency: cardCurrency,
-        card: { number: cleanNum, cvv: cardCvv, expiry_month: mm, expiry_year: yyRaw },
+        amount: amt,
+        currency: cardCurrency,
+        callback_url: `${window.location.origin}/fund?ps_ref=${encodeURIComponent("pending")}`,
       },
     });
     setCardLoading(false);
-    handleCardResponse(data, error);
+    if (error || !data?.authorization_url) {
+      toast.error(error?.message || data?.error || "Could not start payment");
+      return;
+    }
+    setChargeRef(data.reference);
+    // Open Paystack hosted checkout in a new tab
+    window.open(data.authorization_url, "_blank");
+    toast.info("Complete payment in the new tab. We'll credit your wallet automatically.");
+    // Begin polling for completion
+    pollPaystack(data.reference);
+  };
+
+  const pollPaystack = async (reference: string) => {
+    let tries = 0;
+    const tick = async () => {
+      tries++;
+      const { data } = await supabase
+        .from("paystack_charges").select("status").eq("reference", reference).maybeSingle();
+      if (data?.status === "success") {
+        toast.success("Payment successful — wallet credited");
+        resetCard(); refreshWallets();
+        return;
+      }
+      if (data?.status === "failed") {
+        toast.error("Payment failed or was cancelled");
+        resetCard();
+        return;
+      }
+      if (tries < 60) setTimeout(tick, 3000);
+    };
+    setTimeout(tick, 4000);
   };
 
   const submitStep = async () => {
