@@ -36,7 +36,9 @@ function NavItems({ isAdmin, isSuperAdmin, onClick }: { isAdmin: boolean; isSupe
         <NavLink key={to} to={to} onClick={onClick}
           className={({ isActive }) =>
             cn("flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-              isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              isActive
+                ? "bg-primary-foreground text-primary md:bg-primary-foreground md:text-primary"
+                : "text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
             )
           }>
           <Icon className="h-4 w-4" />
