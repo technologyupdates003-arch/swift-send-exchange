@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.btc-webhook]
 verify_jwt = false
+
+[functions.paystack-public-key]
+verify_jwt = false
