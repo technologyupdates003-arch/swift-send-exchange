@@ -246,7 +246,7 @@ export default function FundWallet() {
           <Card>
             <CardHeader>
               <CardTitle>Pay with card</CardTitle>
-              <CardDescription>Visa, Mastercard, Verve, bank transfer & more — processed securely on Paystack's PCI-DSS hosted checkout.</CardDescription>
+              <CardDescription>Visa, Mastercard, Verve, bank transfer & more — secure card popup, no redirect.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
