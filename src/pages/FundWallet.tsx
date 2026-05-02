@@ -16,14 +16,6 @@ import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
-const cardSchema = z.object({
-  amount: z.number().positive(),
-  currency: z.enum(["NGN", "USD", "KES"]),
-  number: z.string().regex(/^\d{12,19}$/, "Invalid card number"),
-  expiry: z.string().regex(/^(0[1-9]|1[0-2])\/?(\d{2}|\d{4})$/, "MM/YY"),
-  cvv: z.string().regex(/^\d{3,4}$/),
-});
-
 const stkSchema = z.object({
   amount: z.number().positive().min(10),
   phone: z.string().regex(/^(?:\+?254|0)?[17]\d{8}$/, "Invalid Kenyan phone"),
@@ -33,24 +25,16 @@ const abanSchema = z.object({ usd_amount: z.number().positive() });
 
 interface WalletRow { id: string; currency: string; balance: number; }
 
-type CardStep = "form" | "pin" | "otp" | "phone" | "birthday" | "3ds";
-
 export default function FundWallet() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [wallets, setWallets] = useState<WalletRow[]>([]);
 
-  // Card state
+  // Card state (hosted Paystack checkout)
   const [cardCurrency, setCardCurrency] = useState<"NGN" | "USD" | "KES">("NGN");
   const [cardAmount, setCardAmount] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
   const [cardLoading, setCardLoading] = useState(false);
-  const [cardStep, setCardStep] = useState<CardStep>("form");
   const [chargeRef, setChargeRef] = useState<string | null>(null);
-  const [stepInput, setStepInput] = useState("");
-  const [stepHint, setStepHint] = useState("");
 
   // STK state
   const [stkAmount, setStkAmount] = useState("");
