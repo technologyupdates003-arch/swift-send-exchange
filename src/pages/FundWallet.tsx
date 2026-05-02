@@ -69,25 +69,53 @@ export default function FundWallet() {
   const submitCard = async () => {
     const amt = parseFloat(cardAmount);
     if (!amt || amt <= 0) { toast.error("Enter a valid amount"); return; }
+    if (!(window as any).PaystackPop) { toast.error("Payment library not loaded — refresh the page"); return; }
     setCardLoading(true);
-    const { data, error } = await supabase.functions.invoke("paystack-init-transaction", {
-      body: {
-        amount: amt,
-        currency: cardCurrency,
-        callback_url: `${window.location.origin}/fund?ps_ref=${encodeURIComponent("pending")}`,
-      },
+
+    // 1) Create a pending charge + reference on our backend
+    const { data: init, error: initErr } = await supabase.functions.invoke("paystack-init-transaction", {
+      body: { amount: amt, currency: cardCurrency },
     });
-    setCardLoading(false);
-    if (error || !data?.authorization_url) {
-      toast.error(error?.message || data?.error || "Could not start payment");
+    if (initErr || !init?.reference) {
+      setCardLoading(false);
+      toast.error(initErr?.message || init?.error || "Could not start payment");
       return;
     }
-    setChargeRef(data.reference);
-    // Open Paystack hosted checkout in a new tab
-    window.open(data.authorization_url, "_blank");
-    toast.info("Complete payment in the new tab. We'll credit your wallet automatically.");
-    // Begin polling for completion
-    pollPaystack(data.reference);
+
+    // 2) Fetch our public key
+    const { data: pk } = await supabase.functions.invoke("paystack-public-key", { body: {} });
+    const publicKey = pk?.public_key;
+    if (!publicKey) {
+      setCardLoading(false);
+      toast.error("Card payments not configured");
+      return;
+    }
+
+    setChargeRef(init.reference);
+
+    // 3) Open Paystack Inline popup (no redirect, on-site overlay)
+    const popup = new (window as any).PaystackPop();
+    popup.newTransaction({
+      key: publicKey,
+      email: user?.email || `${user?.id}@user.local`,
+      amount: Math.round(amt * 100),
+      currency: cardCurrency,
+      reference: init.reference,
+      onSuccess: (tx: any) => {
+        setCardLoading(false);
+        toast.success("Payment received — crediting wallet…");
+        pollPaystack(tx.reference || init.reference);
+      },
+      onCancel: () => {
+        setCardLoading(false);
+        toast.info("Payment cancelled");
+        setChargeRef(null);
+      },
+      onError: (err: any) => {
+        setCardLoading(false);
+        toast.error(err?.message || "Payment error");
+      },
+    });
   };
 
   const pollPaystack = async (reference: string) => {
