@@ -86,17 +86,17 @@ export default function AppLayout() {
       </header>
 
       <div className="flex">
-        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:bg-card md:min-h-screen md:p-4">
+        <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-primary/20 md:bg-primary md:text-primary-foreground md:min-h-screen md:p-4">
           <div className="mb-8"><Logo size="md" /></div>
           <NavItems isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
           <div className="mt-auto space-y-3 pt-6">
-            <div className="rounded-lg border bg-muted/30 p-3 text-xs">
+            <div className="rounded-lg border border-primary-foreground/20 bg-primary-foreground/10 p-3 text-xs">
               <p className="truncate font-medium">{user?.email}</p>
-              <p className="text-muted-foreground">
+              <p className="text-primary-foreground/70">
                 {isSuperAdmin ? "Super Admin" : isAdmin ? "Admin" : "Signed in"}
               </p>
             </div>
-            <Button variant="outline" className="w-full" onClick={handleLogout}>
+            <Button variant="secondary" className="w-full" onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" /> Log out
             </Button>
           </div>
