@@ -268,7 +268,7 @@ export default function FundWallet() {
               </div>
 
               <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-2">
-                <div className="flex items-center gap-2"><Lock className="h-3 w-3" /> You'll enter card details on Paystack's secure page.</div>
+                <div className="flex items-center gap-2"><Lock className="h-3 w-3" /> Card entered in a secure on-page popup — no redirects.</div>
                 <div className="flex items-center gap-2"><ShieldCheck className="h-3 w-3 text-primary" /> Wallet is credited automatically once payment confirms.</div>
               </div>
 
