@@ -47,7 +47,7 @@ export default function BankAccounts() {
     const [b, w, wd] = await Promise.all([
       supabase.from("bank_accounts").select("*").order("created_at", { ascending: false }),
       supabase.from("wallets").select("*").eq("user_id", user.id).order("currency"),
-      supabase.from("withdrawal_requests").select("*").order("created_at", { ascending: false }).limit(10),
+      supabase.from("withdrawal_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
     ]);
     if (b.data) setBanks(b.data);
     if (w.data) setWallets(w.data);
