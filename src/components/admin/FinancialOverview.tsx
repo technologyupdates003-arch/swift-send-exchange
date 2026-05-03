@@ -15,6 +15,7 @@ import {
 
 interface Overview {
   balances_by_currency: Record<string, number> | null;
+  platform_wallets: { currency: string; revenue_type: string; balance: number; updated_at: string }[] | null;
   totals: {
     users: number; wallets: number; frozen_wallets: number;
     txns_today: number; txns_failed_today: number;
@@ -52,6 +53,7 @@ export default function FinancialOverview() {
 
   const balances = data.balances_by_currency ?? {};
   const revenue = data.revenue_by_currency ?? {};
+  const platformWallets = data.platform_wallets ?? [];
   const t = data.totals;
   const series = (data.daily_volume_30d ?? []).map((d) => ({
     ...d, day: new Date(d.day).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
@@ -117,6 +119,25 @@ export default function FinancialOverview() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Platform charge wallets</CardTitle>
+          <CardDescription>Fees and exchange commissions collected by the platform.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {platformWallets.length === 0 && <p className="text-sm text-muted-foreground">No charges collected yet.</p>}
+            {platformWallets.map((w) => (
+              <div key={`${w.revenue_type}-${w.currency}`} className="rounded-lg border bg-muted/30 p-3">
+                <Badge variant="outline" className="capitalize">{w.revenue_type.replace("_", " ")}</Badge>
+                <p className="mt-2 text-xs text-muted-foreground">{w.currency}</p>
+                <p className="text-lg font-semibold tabular-nums text-primary">{formatMoney(Number(w.balance), w.currency)}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -20,7 +20,8 @@ export default function Transactions() {
   const [filter, setFilter] = useState<string>("all");
 
   const load = () => {
-    supabase.from("transactions").select("*").order("created_at", { ascending: false }).then(({ data }: any) => {
+    if (!user) return;
+    supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).then(({ data }: any) => {
       if (data) setTxs(data as any);
     });
   };

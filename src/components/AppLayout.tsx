@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { supabase as sb } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/BottomNav";
 import { InstallBanner } from "@/components/InstallBanner";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 const supabase = sb as any;
 
@@ -80,6 +81,7 @@ export default function AppLayout() {
       <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
         <Logo size="sm" />
         <div className="flex items-center gap-2">
+          <NotificationsBell userId={user?.id} />
           {isSuperAdmin && <Crown className="h-4 w-4 text-primary" />}
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
@@ -90,6 +92,9 @@ export default function AppLayout() {
       <div className="flex">
         <aside className="hidden md:flex md:w-64 md:flex-col md:border-r md:border-primary/20 md:bg-primary md:text-primary-foreground md:min-h-screen md:p-4">
           <div className="mb-8"><Logo size="md" /></div>
+          <div className="mb-4 flex justify-end">
+            <NotificationsBell userId={user?.id} light />
+          </div>
           <NavItems isAdmin={isAdmin} isSuperAdmin={isSuperAdmin} />
           <div className="mt-auto space-y-3 pt-6">
             <div className="rounded-lg border border-primary-foreground/20 bg-primary-foreground/10 p-3 text-xs">

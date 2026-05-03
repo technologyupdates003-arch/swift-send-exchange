@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 import { PinDialog } from "@/components/PinDialog";
 import { usePinGuard } from "@/hooks/usePinGuard";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
@@ -37,7 +38,8 @@ export default function AbanCoin() {
   const [pendingAction, setPendingAction] = useState<((pin: string) => Promise<void>) | null>(null);
 
   const refresh = () => {
-    supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
+    if (!user) return;
+    supabase.from("wallets").select("*").eq("user_id", user.id).order("currency").then(({ data }: any) => data && setWallets(data));
     supabase.rpc("aban_quote").then(({ data }: any) => data && setQuote(data));
   };
 
@@ -47,6 +49,7 @@ export default function AbanCoin() {
     const i = setInterval(refresh, 8000);
     return () => clearInterval(i);
   }, [user]);
+  useWalletRealtime(user?.id, refresh);
 
   const requirePin = (action: (pin: string) => Promise<void>) => {
     if (!hasPin) { toast.error("Set your transaction PIN in Settings first"); navigate("/settings"); return; }

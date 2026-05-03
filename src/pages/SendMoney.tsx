@@ -55,7 +55,8 @@ export default function SendMoney() {
   const [mAmt, setMAmt] = useState("");
 
   const loadWallets = () => {
-    supabase.from("wallets").select("*").order("currency").then(({ data }: any) => {
+    if (!user) return;
+    supabase.from("wallets").select("*").eq("user_id", user.id).order("currency").then(({ data }: any) => {
       if (data) setWallets(data);
     });
   };

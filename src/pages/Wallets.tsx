@@ -21,7 +21,8 @@ export default function Wallets() {
   const [copied, setCopied] = useState<string | null>(null);
 
   const load = async () => {
-    const { data } = await supabase.from("wallets").select("*").order("currency");
+    if (!user) return;
+    const { data } = await supabase.from("wallets").select("*").eq("user_id", user.id).order("currency");
     if (data) setWallets(data as any);
   };
 

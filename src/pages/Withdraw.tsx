@@ -14,6 +14,7 @@ import { Building2, Plus, Trash2, Smartphone, ArrowUpFromLine, AtSign, Coins, Lo
 import { formatMoney } from "@/lib/format";
 import { PinDialog } from "@/components/PinDialog";
 import { usePinGuard } from "@/hooks/usePinGuard";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
@@ -101,13 +102,14 @@ export default function Withdraw() {
     if (!user) return;
     const [b, w] = await Promise.all([
       supabase.from("bank_accounts").select("*").order("created_at", { ascending: false }),
-      supabase.from("wallets").select("*").order("currency"),
+      supabase.from("wallets").select("*").eq("user_id", user.id).order("currency"),
     ]);
     if (b.data) setBanks(b.data);
     if (w.data) setWallets(w.data);
     supabase.rpc("aban_quote").then(({ data }: any) => data && setAbanQuote(data));
   };
   useEffect(() => { load(); }, [user]);
+  useWalletRealtime(user?.id, load);
 
   useEffect(() => {
     const t = setTimeout(async () => {

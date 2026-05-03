@@ -27,8 +27,11 @@ export default function Admin() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
-      .then(({ data }: any) => setIsAdmin(!!data));
+    supabase.from("user_roles").select("role").eq("user_id", user.id)
+      .then(({ data }: any) => {
+        const roles = (data ?? []).map((r: any) => r.role);
+        setIsAdmin(roles.includes("admin") || roles.includes("super_admin"));
+      });
   }, [user]);
 
   const load = async () => {

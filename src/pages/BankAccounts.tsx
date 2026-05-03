@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Building2, Plus, Trash2, ArrowUpFromLine } from "lucide-react";
 import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
@@ -45,14 +46,15 @@ export default function BankAccounts() {
     if (!user) return;
     const [b, w, wd] = await Promise.all([
       supabase.from("bank_accounts").select("*").order("created_at", { ascending: false }),
-      supabase.from("wallets").select("*").order("currency"),
-      supabase.from("withdrawal_requests").select("*").order("created_at", { ascending: false }).limit(10),
+      supabase.from("wallets").select("*").eq("user_id", user.id).order("currency"),
+      supabase.from("withdrawal_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
     ]);
     if (b.data) setBanks(b.data);
     if (w.data) setWallets(w.data);
     if (wd.data) setWithdrawals(wd.data);
   };
   useEffect(() => { load(); }, [user]);
+  useWalletRealtime(user?.id, load);
 
   const addBank = async (e: React.FormEvent) => {
     e.preventDefault();

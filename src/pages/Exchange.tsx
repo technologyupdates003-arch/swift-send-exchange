@@ -12,6 +12,7 @@ import { ALL_CURRENCIES, formatMoney } from "@/lib/format";
 import { ArrowDown, RefreshCw } from "lucide-react";
 import { PinDialog } from "@/components/PinDialog";
 import { usePinGuard } from "@/hooks/usePinGuard";
+import { useWalletRealtime } from "@/hooks/useWalletRealtime";
 
 const supabase = sb as any;
 
@@ -30,16 +31,18 @@ export default function Exchange() {
   const [pinOpen, setPinOpen] = useState(false);
   const [pinLoading, setPinLoading] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     if (!user) return;
     Promise.all([
-      supabase.from("wallets").select("*").order("currency"),
+      supabase.from("wallets").select("*").eq("user_id", user.id).order("currency"),
       supabase.from("exchange_rates").select("*"),
     ]).then(([w, r]: any) => {
       if (w.data) setWallets(w.data);
       if (r.data) setRates(r.data);
     });
-  }, [user]);
+  };
+  useEffect(() => { load(); }, [user]);
+  useWalletRealtime(user?.id, load);
 
   const fromWallet = wallets.find((w) => w.currency === from);
   const rate = useMemo(

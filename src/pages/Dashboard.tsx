@@ -21,8 +21,8 @@ export default function Dashboard() {
   const load = async () => {
     if (!user) return;
       const [w, t, p] = await Promise.all([
-        supabase.from("wallets").select("*").order("currency"),
-        supabase.from("transactions").select("*").order("created_at", { ascending: false }).limit(5),
+        supabase.from("wallets").select("*").eq("user_id", user.id).order("currency"),
+        supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(5),
         supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
       ]);
       if (w.data) setWallets(w.data as any);
