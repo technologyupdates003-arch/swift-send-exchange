@@ -33,9 +33,16 @@ export function useNotifications(userId: string | undefined) {
     if (!userId) return;
     const ch = supabase
       .channel(`notifications-${userId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, load)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => load()
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      ch.unsubscribe();
+      supabase.removeChannel(ch);
+    };
   }, [userId, load]);
 
   const markAllRead = async () => {
