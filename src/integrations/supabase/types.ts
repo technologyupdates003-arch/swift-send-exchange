@@ -398,6 +398,39 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       paystack_charges: {
         Row: {
           amount: number
@@ -530,6 +563,66 @@ export type Database = {
           updated_at?: string
           user_id?: string
           withdrawal_id?: string | null
+        }
+        Relationships: []
+      }
+      platform_revenue_events: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          id: string
+          metadata: Json | null
+          reference: string | null
+          revenue_type: string
+          source: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          metadata?: Json | null
+          reference?: string | null
+          revenue_type: string
+          source: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          metadata?: Json | null
+          reference?: string | null
+          revenue_type?: string
+          source?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      platform_wallets: {
+        Row: {
+          balance: number
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          id: string
+          revenue_type: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          currency: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          revenue_type?: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          currency?: Database["public"]["Enums"]["wallet_currency"]
+          id?: string
+          revenue_type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -833,6 +926,28 @@ export type Database = {
           _target_user: string
         }
         Returns: Json
+      }
+      create_notification: {
+        Args: {
+          _message: string
+          _metadata?: Json
+          _title: string
+          _type?: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      credit_platform_wallet: {
+        Args: {
+          _amount: number
+          _currency: Database["public"]["Enums"]["wallet_currency"]
+          _metadata?: Json
+          _reference?: string
+          _revenue_type: string
+          _source: string
+          _user_id?: string
+        }
+        Returns: undefined
       }
       delete_wallet: { Args: { _wallet_id: string }; Returns: Json }
       exchange_currency:
