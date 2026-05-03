@@ -55,13 +55,14 @@ export default function FundWallet() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
+    supabase.from("wallets").select("*").eq("user_id", user.id).order("currency").then(({ data }: any) => data && setWallets(data));
     supabase.rpc("aban_quote").then(({ data }: any) => data && setAbanQuote(data));
   }, [user]);
 
   // Live wallet refresh — any change to user's money tables updates the cards
   useWalletRealtime(user?.id, () => {
-    supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
+    if (!user) return;
+    supabase.from("wallets").select("*").eq("user_id", user.id).order("currency").then(({ data }: any) => data && setWallets(data));
   });
 
   
@@ -143,7 +144,7 @@ export default function FundWallet() {
     setCardAmount("");
     setChargeRef(null);
   };
-  const refreshWallets = () => supabase.from("wallets").select("*").order("currency").then(({ data }: any) => data && setWallets(data));
+  const refreshWallets = () => user && supabase.from("wallets").select("*").eq("user_id", user.id).order("currency").then(({ data }: any) => data && setWallets(data));
 
   const submitStk = async () => {
     const parsed = stkSchema.safeParse({ amount: parseFloat(stkAmount), phone: stkPhone });
