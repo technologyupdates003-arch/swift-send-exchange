@@ -123,6 +123,12 @@ export default function FundWallet() {
     let tries = 0;
     const tick = async () => {
       tries++;
+      const { data: verified } = await supabase.functions.invoke("paystack-verify-transaction", { body: { reference } });
+      if (verified?.status === "success") {
+        toast.success("Payment successful — wallet credited");
+        resetCard(); refreshWallets();
+        return;
+      }
       const { data } = await supabase
         .from("paystack_charges").select("status").eq("reference", reference).maybeSingle();
       if (data?.status === "success") {
