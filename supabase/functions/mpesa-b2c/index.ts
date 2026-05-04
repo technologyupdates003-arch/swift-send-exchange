@@ -240,7 +240,11 @@ Deno.serve(async (req) => {
     if (payout.status !== "pending") return new Response(JSON.stringify({ error: "Payout not pending" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const token = await getAccessToken();
-    const securityCredential = await encryptInitiator(INITIATOR_PASSWORD);
+    // Prefer pre-generated security credential from Daraja portal (avoids cert/encryption issues).
+    const PREGEN_CRED = Deno.env.get("MPESA_SECURITY_CREDENTIAL");
+    const securityCredential = PREGEN_CRED && PREGEN_CRED.trim().length > 0
+      ? PREGEN_CRED.trim()
+      : await encryptInitiator(INITIATOR_PASSWORD);
     const callbackBase = `${SUPABASE_URL}/functions/v1/mpesa-b2c-callback`;
 
     const originatorId = `ABN-${payout_id.replace(/-/g, "").slice(0, 20)}`;
