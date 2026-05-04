@@ -31,16 +31,13 @@ export function useNotifications(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) return;
-    const ch = supabase
-      .channel(`notifications-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        () => load()
-      )
-      .subscribe();
+    const ch = supabase.channel(`notifications-${userId}-${Math.random().toString(36).slice(2, 8)}`);
+    ch.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+      () => load()
+    ).subscribe();
     return () => {
-      ch.unsubscribe();
       supabase.removeChannel(ch);
     };
   }, [userId, load]);
