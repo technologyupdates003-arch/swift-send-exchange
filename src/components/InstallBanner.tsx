@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, Share, Smartphone } from "lucide-react";
+import { Download, Share, Smartphone, X } from "lucide-react";
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,8 +10,8 @@ interface BIPEvent extends Event {
 function isStandalone() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
-    // iOS
-    (window.navigator as any).standalone === true
+    (window.navigator as any).standalone === true ||
+    document.referrer.startsWith("android-app://")
   );
 }
 
@@ -20,10 +20,18 @@ function isIos() {
   return /iphone|ipad|ipod/.test(ua) && !(window as any).MSStream;
 }
 
+function isAndroid() {
+  return /android/i.test(window.navigator.userAgent);
+}
+
+function isMobile() {
+  return isIos() || isAndroid();
+}
+
 export function InstallBanner() {
   const [installed, setInstalled] = useState<boolean>(isStandalone());
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
-  const [showIosHelp, setShowIosHelp] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     if (installed) return;
@@ -45,6 +53,7 @@ export function InstallBanner() {
   }, [installed]);
 
   if (installed) return null;
+  if (!isMobile()) return null;
 
   const onInstall = async () => {
     if (deferred) {
@@ -52,8 +61,8 @@ export function InstallBanner() {
       const { outcome } = await deferred.userChoice;
       if (outcome === "accepted") setInstalled(true);
       setDeferred(null);
-    } else if (isIos()) {
-      setShowIosHelp((v) => !v);
+    } else {
+      setShowHelp((v) => !v);
     }
   };
 
@@ -65,8 +74,10 @@ export function InstallBanner() {
           <p className="font-medium leading-tight">Install AbanRemit</p>
           <p className="text-xs opacity-90 leading-tight">
             {isIos()
-              ? "Tap Share, then ‘Add to Home Screen’."
-              : "Get the app for faster, full-screen access."}
+              ? "Tap Share, then 'Add to Home Screen'."
+              : deferred
+              ? "Get the app for faster, full-screen access."
+              : "Tap your browser menu, then 'Install app'."}
           </p>
         </div>
         <Button
@@ -79,9 +90,13 @@ export function InstallBanner() {
           Install
         </Button>
       </div>
-      {showIosHelp && isIos() && (
+      {showHelp && (
         <div className="border-t border-primary-foreground/20 bg-primary/95 px-4 py-2 text-xs">
-          1. Tap the <Share className="inline h-3 w-3" /> Share button in Safari · 2. Scroll and tap <strong>Add to Home Screen</strong> · 3. Tap <strong>Add</strong>.
+          {isIos() ? (
+            <>1. Tap the <Share className="inline h-3 w-3" /> Share button in Safari · 2. Scroll and tap <strong>Add to Home Screen</strong> · 3. Tap <strong>Add</strong>.</>
+          ) : (
+            <>1. Open your browser menu (⋮) · 2. Tap <strong>Install app</strong> or <strong>Add to Home screen</strong> · 3. Confirm <strong>Install</strong>.</>
+          )}
         </div>
       )}
     </div>
