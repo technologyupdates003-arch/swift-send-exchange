@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
     // Resolve phone: use provided, else from profile
     let phone = normalizePhone(phoneIn);
     if (!phone && user_id) {
-      const { data: prof } = await admin.from("profiles").select("phone").eq("id", user_id).maybeSingle();
-      phone = normalizePhone(prof?.phone);
+      const { data: prof } = await admin.from("profiles").select("phone_number").eq("id", user_id).maybeSingle();
+      phone = normalizePhone(prof?.phone_number);
     }
     if (!phone) {
       console.log("talksasa: no phone for user", user_id);
