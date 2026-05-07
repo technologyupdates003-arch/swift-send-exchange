@@ -54,11 +54,16 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ invoice_id: invoiceId }),
     });
     const data = await res.json();
-    const state = (data?.invoice?.state || data?.state || "").toUpperCase();
-    console.log("intasend-status", reference, state);
+    const inv = data?.invoice || data;
+    const state = (inv?.state || "").toUpperCase();
+    const failedCode = String(inv?.failed_code ?? "");
+    const mpesaRef = inv?.mpesa_reference;
+    const isActuallySuccess =
+      state === "COMPLETE" || state === "COMPLETED" ||
+      (failedCode === "0" && !!mpesaRef);
+    console.log("intasend-status", reference, state, "fc=", failedCode, "mref=", mpesaRef);
 
-    if (state === "COMPLETE" || state === "COMPLETED") {
-      // Atomically flip + credit
+    if (isActuallySuccess) {
       const { data: updated } = await admin.from("mpesa_stk_requests")
         .update({ status: "completed", completed_at: new Date().toISOString(), provider_response: data })
         .eq("reference", reference).eq("status", "pending").select().maybeSingle();
@@ -67,14 +72,23 @@ Deno.serve(async (req) => {
           _user_id: row.user_id, _currency: "KES", _amount: Number(row.amount),
           _method: "mpesa_stk", _reference: reference,
         });
+        try {
+          await admin.functions.invoke("talksasa-send-sms", {
+            body: {
+              user_id: row.user_id, event: "wallet_funded",
+              amount: Number(row.amount), currency: "KES",
+              phone: inv?.account, reference: mpesaRef || reference,
+            },
+          });
+        } catch (e) { console.error("sms invoke err", e); }
       }
       return new Response(JSON.stringify({ success: true, status: "completed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (state === "FAILED" || state === "RETRY") {
       await admin.from("mpesa_stk_requests").update({
-        status: "failed", failure_reason: data?.invoice?.failed_reason || data?.failed_reason, provider_response: data,
+        status: "failed", failure_reason: inv?.failed_reason || data?.failed_reason, provider_response: data,
       }).eq("reference", reference).eq("status", "pending");
-      return new Response(JSON.stringify({ success: false, status: "failed", message: data?.invoice?.failed_reason || "Failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ success: false, status: "failed", message: inv?.failed_reason || "Failed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     return new Response(JSON.stringify({ success: false, status: "pending", state, message: "Waiting for confirmation" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
