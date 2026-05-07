@@ -24,14 +24,35 @@ Deno.serve(async (req) => {
     const { data: row } = await admin.from("mpesa_stk_requests").select("*").eq("reference", reference).maybeSingle();
     if (!row || row.status === "completed") return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
 
-    if (state === "COMPLETE" || state === "COMPLETED") {
-      await admin.from("mpesa_stk_requests").update({
+    // IntaSend quirk: sometimes sends state=FAILED with failed_code="0" and a real
+    // mpesa_reference — this means M-Pesa actually succeeded. Treat as success.
+    const failedCode = String(event?.failed_code ?? "");
+    const mpesaRef = event?.mpesa_reference;
+    const isActuallySuccess =
+      state === "COMPLETE" || state === "COMPLETED" ||
+      (failedCode === "0" && !!mpesaRef);
+
+    if (isActuallySuccess) {
+      const { data: updated } = await admin.from("mpesa_stk_requests").update({
         status: "completed", completed_at: new Date().toISOString(), provider_response: event,
-      }).eq("reference", reference);
-      await admin.rpc("fund_wallet", {
-        _user_id: row.user_id, _currency: "KES", _amount: Number(row.amount),
-        _method: "mpesa_stk", _reference: reference,
-      });
+      }).eq("reference", reference).neq("status", "completed").select().maybeSingle();
+      if (updated) {
+        await admin.rpc("fund_wallet", {
+          _user_id: row.user_id, _currency: "KES", _amount: Number(row.amount),
+          _method: "mpesa_stk", _reference: reference,
+        });
+        // Fire SMS notification (best-effort)
+        try {
+          await admin.functions.invoke("talksasa-send-sms", {
+            body: {
+              user_id: row.user_id,
+              event: "wallet_funded",
+              amount: Number(row.amount), currency: "KES",
+              phone: event?.account, reference: mpesaRef || reference,
+            },
+          });
+        } catch (e) { console.error("sms invoke err", e); }
+      }
     } else if (state === "FAILED" || state === "RETRY") {
       await admin.from("mpesa_stk_requests").update({
         status: "failed", failure_reason: event?.failed_reason || event?.charges, provider_response: event,
