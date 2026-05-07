@@ -46,6 +46,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Best-effort SMS
+    try {
+      await admin.functions.invoke("talksasa-send-sms", {
+        body: {
+          user_id: payout.user_id,
+          event: success ? "wallet_withdraw" : "wallet_withdraw_failed",
+          amount: Number(payout.amount), currency: "KES",
+          phone: payout.phone_number, reference: result?.TransactionID || payoutId,
+        },
+      });
+    } catch (e) { console.error("sms invoke err", e); }
+
     return new Response(JSON.stringify({ ResultCode: 0, ResultDesc: "Accepted" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("mpesa-b2c-callback error", e);
