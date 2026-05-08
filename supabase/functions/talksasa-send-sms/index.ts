@@ -74,6 +74,16 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ ok: false, skipped: "no_phone" }), { headers: corsHeaders });
     }
 
+    // Auto-enrich wallet_number & balance if not provided
+    if (user_id && (body.wallet_number == null || body.balance == null)) {
+      const cur = body.currency || "KES";
+      const { data: w } = await admin.from("wallets").select("wallet_number,balance").eq("user_id", user_id).eq("currency", cur).maybeSingle();
+      if (w) {
+        if (body.wallet_number == null) body.wallet_number = w.wallet_number;
+        if (body.balance == null) body.balance = w.balance;
+      }
+    }
+
     const message = buildMessage(event, body);
     const res = await fetch("https://bulksms.talksasa.com/api/v3/sms/send", {
       method: "POST",
