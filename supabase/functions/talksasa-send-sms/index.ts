@@ -20,20 +20,38 @@ function normalizePhone(p?: string | null): string | null {
   return s.length >= 10 ? s : null;
 }
 
+function fmtDateTime(d = new Date()): string {
+  // Kenya time
+  const opts: Intl.DateTimeFormatOptions = { timeZone: "Africa/Nairobi", day: "2-digit", month: "2-digit", year: "2-digit" };
+  const date = new Intl.DateTimeFormat("en-GB", opts).format(d);
+  const time = new Intl.DateTimeFormat("en-US", { timeZone: "Africa/Nairobi", hour: "numeric", minute: "2-digit", hour12: true }).format(d);
+  return `${date} at ${time}`;
+}
+
 function buildMessage(event: string, data: any): string {
-  const amt = `${data.currency || "KES"} ${Number(data.amount || 0).toLocaleString()}`;
-  const ref = data.reference ? ` Ref: ${data.reference}.` : "";
+  const cur = data.currency || "KES";
+  const amt = `${cur} ${Number(data.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const bal = data.balance != null ? `${cur} ${Number(data.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : null;
+  const ref = data.reference ? String(data.reference).toUpperCase() : "";
+  const when = fmtDateTime();
+  const wallet = data.wallet_number ? ` Wallet ${data.wallet_number}.` : "";
+  const balLine = bal ? ` New AbanRemit balance is ${bal}.` : "";
+  const fee = data.fee != null ? ` Transaction cost ${cur} ${Number(data.fee).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}.` : "";
+  const dailyLimit = ` Amount you can transact within the day is ${cur} 500,000.00.`;
+
   switch (event) {
     case "wallet_funded":
-      return `AbanRemit: Your wallet has been funded with ${amt}.${ref} Thank you.`;
+      return `${ref} Confirmed. ${amt} received into your AbanRemit wallet on ${when}.${wallet}${balLine}${fee}${dailyLimit}`;
     case "wallet_withdraw":
-      return `AbanRemit: ${amt} has been withdrawn from your wallet.${ref}`;
+      return `${ref} Confirmed. ${amt} withdrawn from your AbanRemit wallet${data.phone ? ` to ${data.phone}` : ""} on ${when}.${wallet}${balLine}${fee}${dailyLimit}`;
+    case "wallet_withdraw_failed":
+      return `AbanRemit: Your withdrawal of ${amt} on ${when} failed. ${data.reason || "Please try again."}${ref ? ` Ref: ${ref}.` : ""}`;
     case "wallet_send":
-      return `AbanRemit: You sent ${amt}${data.recipient ? ` to ${data.recipient}` : ""}.${ref}`;
+      return `${ref} Confirmed. ${amt} sent${data.recipient ? ` to ${data.recipient}` : ""} on ${when}.${wallet}${balLine}${fee}${dailyLimit}`;
     case "wallet_receive":
-      return `AbanRemit: You received ${amt}${data.sender ? ` from ${data.sender}` : ""}.${ref}`;
+      return `${ref} Confirmed. ${amt} received${data.sender ? ` from ${data.sender}` : ""} on ${when}.${wallet}${balLine}`;
     default:
-      return `AbanRemit: ${event} ${amt}.${ref}`;
+      return `AbanRemit: ${event} ${amt} on ${when}.${ref ? ` Ref: ${ref}.` : ""}${balLine}`;
   }
 }
 
@@ -54,6 +72,16 @@ Deno.serve(async (req) => {
     if (!phone) {
       console.log("talksasa: no phone for user", user_id);
       return new Response(JSON.stringify({ ok: false, skipped: "no_phone" }), { headers: corsHeaders });
+    }
+
+    // Auto-enrich wallet_number & balance if not provided
+    if (user_id && (body.wallet_number == null || body.balance == null)) {
+      const cur = body.currency || "KES";
+      const { data: w } = await admin.from("wallets").select("wallet_number,balance").eq("user_id", user_id).eq("currency", cur).maybeSingle();
+      if (w) {
+        if (body.wallet_number == null) body.wallet_number = w.wallet_number;
+        if (body.balance == null) body.balance = w.balance;
+      }
     }
 
     const message = buildMessage(event, body);
